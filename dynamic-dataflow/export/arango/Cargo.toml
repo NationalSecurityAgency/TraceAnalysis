@@ -1,0 +1,13 @@
+[package]
+name = "dataflow-arango"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+dataflow-core.workspace = true
+log = "0.4.20"
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread"] }

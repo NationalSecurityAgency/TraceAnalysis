@@ -1,0 +1,50 @@
+[package]
+name = "tracer-panda"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["panda-x86_64"]
+panda-i386 = ["panda-re/i386"]
+panda-x86_64 = ["panda-re/x86_64"]
+panda-arm = ["panda-re/arm"]
+panda-aarch64 = ["panda-re/aarch64"]
+panda-mips = ["panda-re/mips"]
+panda-mipsel = ["panda-re/mipsel"]
+panda-mips64 = ["panda-re/mips64"]
+panda-ppc = ["panda-re/ppc"]
+tracer-panda-bin = ["panda-re/libpanda", "dep:clap", "clap/derive"]
+
+[[bin]]
+name = "panda-trace-x86_64"
+path = "src/bin/x86_64.rs"
+required-features = ["tracer-panda-bin", "panda-x86_64"]
+
+[[bin]]
+name = "panda-trace-i386"
+path = "src/bin/i386.rs"
+required-features = ["tracer-panda-bin", "panda-i386"]
+
+[[bin]]
+name = "panda-trace-aarch64"
+path = "src/bin/aarch64.rs"
+required-features = ["tracer-panda-bin", "panda-aarch64"]
+
+[[bin]]
+name = "panda-trace-arm"
+path = "src/bin/arm.rs"
+required-features = ["tracer-panda-bin", "panda-arm"]
+
+[[bin]]
+name = "panda-trace-mips"
+path = "src/bin/mips.rs"
+required-features = ["tracer-panda-bin", "panda-mips"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+clap = { workspace = true, optional = true }
+dataflow.workspace = true
+panda-re.workspace = true
+trace.workspace = true

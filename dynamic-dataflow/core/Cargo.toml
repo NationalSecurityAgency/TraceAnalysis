@@ -1,0 +1,27 @@
+[package]
+name = "dataflow-core"
+version = "0.3.0"
+authors = [""]
+edition = "2021"
+
+[features]
+plugins = []
+#icicle = ["dep:pcode", "dep:sleigh-parse", "dep:sleigh-compile", "dep:sleigh-runtime"]
+
+[dependencies]
+bitflags.workspace = true
+ghidra-lifter.workspace = true
+hashbrown.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Soon to be replaced with tracing
+log = "0.4"
+
+#pcode = { path = "../sleigh/pcode", optional = true }
+#sleigh-parse = { path = "../sleigh/sleigh-parse", optional = true }
+#sleigh-compile = { path = "../sleigh/sleigh-compile", optional = true }
+#sleigh-runtime = { path = "../sleigh/sleigh-runtime", optional = true }
+

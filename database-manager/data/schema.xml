@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="utf-8"?>
+<schema version="1.0">
+  <node name="operationruns" sourcetype="dynamic" sourcefile="deltas.csv">
+    <description>An operationrun represents a single pcode operation with its concrete output destination and value</description>
+    <attr name="index" type="int">
+      <description>The index of the pcode operation within the execution</description>
+    </attr>
+    <attr name="tick" type="int">
+      <description>The clock tick on which was executed the instruction of which this pcode operation is a part</description>
+      <join table="instructionruns" attr="tick" />
+    </attr>
+    <attr name="opcode" type="int">
+      <description>The pcode opcode (as defined by Ghidra's slaspec) of this pcode operation</description>
+    </attr>
+    <attr name="size" type="int">
+      <description>The number of bytes outputted by this operation</description>
+    </attr>
+    <attr name="bank" type="int">
+      <description>The memory bank in which this operation stored its output value</description>
+    </attr>
+    <attr name="addr" type="int">
+      <description>The address within the given memory bank at which this operation stored its output value</description>
+    </attr>
+    <attr name="val" type="int">
+      <description>The value of the output of this operation. Will be `null` if the value cannot be determined from the trace</description>
+    </attr>
+    <attr name="raw" type="string">
+      <description>a hex-encoded version of `val`. Individual bytes will be replaced with `??` if their values cannot be determined from the trace</description>
+    </attr>
+    <attr name="assocd_addr" type="int">
+      <description>For LOAD operations, the memory address which was read; for CBRANCH operations, the potential (non-fallthrough) branch target.</description>
+    </attr>
+    <attr name="assocd_bank" type="int">
+      <description>The bank of the `assocd_addr` (for LOAD operations, the data memory address space; for CBRANCH, the instruction memory address space)</description>
+    </attr>
+    <attr name="assocd_size" type="int">
+      <description>For LOAD operations, the number of bytes read from `assocd_addr`; For CBRANCH operations, the size of the PC register.</description>
+    </attr>
+    <index type="persistent">
+      <field>index</field>
+    </index>
+    <index type="persistent">
+      <field>tick</field>
+    </index>
+    <index type="persistent">
+      <field>bank</field>
+      <field>addr</field>
+    </index>
+    <index type="persistent">
+      <field>assocd_bank</field>
+      <field>assocd_addr</field>
+      <field>val</field>
+    </index>
+    <index type="persistent">
+      <field>assocd_bank</field>
+      <field>assocd_addr</field>
+    </index>
+  </node>
+  <node name="instructionruns" sourcetype="dynamic" sourcefile="ticks.csv">
+    <description>An `instructionrun` represents a single run of an architectural instruction at a given point in time within the trace</description>
+    <attr name="tick" type="int">
+      <description>The clock tick on which the instruction occurred.</description>
+      <join table="operationruns" attr="tick" />
+    </attr>
+    <attr name="pc" type="int">
+      <description>The value of the program counter register just before the instruction was executed</description>
+    </attr>
+    <attr name="disas" type="string">
+      <description>The disassembly of the instruction</description>
+    </attr>
+    <index type="persistent">
+      <field>pc</field>
+    </index>
+    <index type="persistent">
+      <field>tick</field>
+    </index>
+  </node>
+  <node name="functionruns" sourcetype="dynamic" sourcefile="functionruns.csv">
+    <description>A `functionrun` represents a single run of a function</description>
+    <attr name="callsite" type="int">
+      <description>The program counter of the instruction immediately preceeding this functionrun within the trace</description>
+      <join table="instructionruns" attr="pc" />
+    </attr>
+    <attr name="pc" type="int">
+      <description>The program counter of the first instruction executed in the trace within this functionrun</description>
+      <join table="instructionruns" attr="pc" />
+    </attr>
+    <attr name="starttick" type="int">
+      <description>The clock tick of the first instructionrun occurring within this functionrun</description>
+      <join table="instructionruns" attr="tick" />
+      <join table="operationruns" attr="tick" />
+    </attr>
+    <attr name="startindex" type="int">
+      <description>The index of the first operationrun occurring wihtin this functionrun</description>
+      <join table="operationruns" attr="index" />
+    </attr>
+    <attr name="endindex" type="int">
+      <description>The index of the final operationrun occurring within this functionrun</description>
+      <join table="operationruns" attr="index" />
+    </attr>
+    <attr name="retval" type="int">
+      <description>The value returned by this functionrun</description>
+      <join table="operationruns" attr="val" />
+    </attr>
+    <attr name="stackdepth" type="int">
+      <description>Number of not-yet-returned functioncalls within the trace when this function was called</description>
+    </attr>
+    <attr name="stackptr" type="int">
+      <description>The value of the stack pointer register at the start of the functionrun</description>
+    </attr>
+    <index type="persistent">
+      <field>startindex</field>
+    </index>
+    <index type="persistent">
+      <field>starttick</field>
+    </index>
+    <index type="persistent">
+      <field>pc</field>
+    </index>
+  </node>
+  <node name="syscallruns" sourcetype="dynamic" sourcefile="syscallruns.csv">
+    <description>A `syscallrun` represents a single run of a syscall</description>
+    <attr name="callsite" type="int">
+      <description>The program counter of the instruction immediately preceeding this syscallrun within the trace</description>
+      <join table="instructionruns" attr="pc" />
+    </attr>
+    <attr name="tick" type="int">
+      <description>The tick at which this syscall occurred</description>
+      <join table="instructionruns" attr="tick" />
+      <join table="operationruns" attr="tick" />
+    </attr>
+    <attr name="number" type="int">
+      <description>The number of the syscall</description>
+    </attr>
+    <attr name="retval" type="int">
+      <description>The return value of the syscall</description>
+    </attr>
+  </node>
+  <node name="buffers" sourcetype="dynamic" sourcefile="buffers.csv">
+    <description>A `buffer` represents a run of 9 or more bytes that were all read or all written in the course of a single `functionrun`</description>
+    <attr name="startindex" type="int">
+      <description>The index of the first access into the buffer</description>
+      <join table="operationruns" attr="index" />
+    </attr>
+    <attr name="data" type="string">
+      <description>The hex-encoded bytes of the buffer</description>
+    </attr>
+    <attr name="iswrite" type="int">
+      <description>`1` if the buffer was written, `0` if the buffer was only read</description>
+    </attr>
+    <attr name="addr" type="int">
+      <description>The memory address of the first byte of the buffer</description>
+    </attr>
+    <attr name="size" type="int">
+      <description>The number of bytes in the buffer</description>
+    </attr>
+    <index type="persistent">
+      <field>addr</field>
+    </index>
+    <index type="persistent">
+      <field>startindex</field>
+    </index>
+  </node>
+  <node name="functions" sourcetype="static" sourcefile="function.jsonl">
+    <description>The functions statically deduced by Ghidra</description>
+    <attr name="name" type="string">
+      <description>The name of the function</description>
+    </attr>
+    <attr name="namespace" type="string">
+      <description>The namespace of the function (if defined)</description>
+    </attr>
+    <attr name="module" type="string">
+      <description>The full path of the module from which the function comes</description>
+    </attr>
+    <attr name="addr" type="int">
+      <description>The address of the start of the function</description>
+    </attr>
+    <index type="persistent">
+      <field>addr</field>
+    </index>
+    <index type="persistent">
+      <field>addr</field>
+    </index>
+    <index type="persistent">
+      <field>namespace</field>
+      <field>name</field>
+    </index>
+  </node>
+  <node name="blocks" sourcetype="static" sourcefile="block.jsonl">
+    <description>The basic blocks</description>
+    <attr name="module" type="string">
+      <description>The full path of the module from which the block comes</description>
+    </attr>
+    <attr name="addr" type="int">
+      <description>The starting address of the basic block</description>
+      <join table="instructionruns" attr="pc" />
+    </attr>
+    <attr name="size" type="int">
+      <description>The size of the basic block in number of bytes</description>
+    </attr>
+    <index type="persistent">
+      <field>addr</field>
+    </index>
+  </node>
+  <node name="modules" sourcetype="dynamic" sourcefile="modules.csv">
+    <description>The modules loaded into memory during the trace collection</description>
+    <attr name="base" type="int">
+      <description>The starting address of the module</description>
+    </attr>
+    <attr name="size" type="int">
+      <description>The size of the module in number of bytes</description>
+    </attr>
+    <attr name="name" type="string">
+      <description>The name of the module</description>
+    </attr>
+    <attr name="path" type="string">
+      <description>The path of the module relative to the sysroot</description>
+    </attr>
+    <index type="persistent">
+      <field>base</field>
+    </index>
+  </node>
+  <node name="constantuses" sourcetype="dynamic" sourcefile="const_uses.csv">
+    <description></description>
+    <attr name="val" type="int">
+      <description>The value of the constant used</description>
+    </attr>
+    <attr name="raw" type="string">
+      <description>A hex-encoded string representing the constant used</description>
+    </attr>
+    <attr name="size" type="int">
+      <description>The size in bytes of the constant value used</description>
+    </attr>
+  </node>
+  <node name="opcodes" sourcetype="constant" sourcefile="opcodes.jsonl">
+    <description>The mapping of integer pcode opcodes to string names</description>
+    <attr name="name" type="string">
+      <description>The string name of the opcode</description>
+    </attr>
+    <attr name="value" type="int">
+      <description>The pcode integer value of the opcode</description>
+      <join table="operationruns" attr="opcode" />
+    </attr>
+  </node>
+  <node name="registers" sourcetype="constant" sourcefile="registers.jsonl">
+    <description>The mapping of addresses within the register address space to architectural register names</description>
+    <attr name="name" type="string">
+      <description>The string name of the register</description>
+    </attr>
+    <attr name="value" type="int">
+      <description>The offset in the register address space of the register</description>
+      <join table="operationruns" attr="addr" />
+    </attr>
+    <attr name="is_gp" type="bool">
+      <description>`true` if this is a general-purpose register, `false` if not</description>
+    </attr>
+  </node>
+  <node name="objects" sourcetype="user">
+    <description>The set of objects that come into and out of existence through the course of the trace</description>
+    <attr name="name" type="string">
+      <description>The string name of the object</description>
+    </attr>
+    <attr name="base" type="int">
+      <description>The base address of this object in memory</description>
+    </attr>
+    <attr name="size" type="int">
+      <description>The size of this object in memory</description>
+    </attr>
+    <attr name="start" type="int">
+      <description>The tick on which this object comes into existence</description>
+      <join table="instructionruns" attr="tick" />
+    </attr>
+    <attr name="end" type="int">
+      <description>The tick on which this object ceases its existence</description>
+      <join table="instructionruns" attr="tick" />
+    </attr>
+    <index type="persistent">
+      <field>base</field>
+    </index>
+    <index type="persistent">
+      <field>start</field>
+    </index>
+    <index type="persistent">
+      <field>end</field>
+    </index>
+  </node>
+  <node name="phases" sourcetype="user">
+    <description>Information about the various types that capture how an object is interacted with at various phases over the course of its lifetime</description>
+    <attr name="type" type="int">
+      <description>The Ghidra UniversalID of the type describing this object during the current phase</description>
+    </attr>
+    <attr name="start" type="int">
+      <description>The tick of the start of the current phase (the next phase is dictated by the `start` entries of the other phases of a given object)</description>
+      <join table="instructionruns" attr="tick" />
+    </attr>
+  </node>
+  <node name="memaccesses" sourcetype="analysis">
+    <description>The calls to malloc along with their return values made during the trace</description>
+    <attr name="index" type="int">
+      <description>The callsite of the malloc</description>
+      <join table="operationruns" attr="index" />
+    </attr>
+    <attr name="addr" type="int">
+      <description>The address that is accessed</description>
+      <join table="operationruns" attr="addr" />
+    </attr>
+    <attr name="size" type="int">
+      <description>The size of the memory access</description>
+    </attr>
+    <attr name="tick" type="int">
+      <description>The tick at which the access occurred</description>
+      <join table="instructionruns" attr="tick" />
+    </attr>
+    <attr name="pc" type="int">
+      <description>The pc at which the access occurred</description>
+      <join table="instructionruns" attr="pc" />
+    </attr>
+    <attr name="val" type="int">
+      <description>The value that was read or written during the access</description>
+      <join table="operationruns" attr="val" />
+    </attr>
+    <attr name="is_write" type="bool">
+      <description>`true` if the access is a write, `false` otherwise</description>
+    </attr>
+    <attr name="disas" type="string">
+      <description>The disassembly of the instruction that performed the access</description>
+      <join table="instructionruns" attr="disas" />
+    </attr>
+    <index type="persistent">
+      <field>index</field>
+    </index>
+    <index type="persistent">
+      <field>addr</field>
+    </index>
+    <index type="persistent">
+      <field>tick</field>
+    </index>
+    <index type="persistent">
+      <field>pc</field>
+    </index>
+  </node>
+  <edge name="inputdep" sourcetype="dynamic" src="operationruns" dst="operationruns" sourcefile="input_deps.csv">
+    <description>An `inputdep` edge from `x` to `y` with `pos` equal to `n` means that the output of operation `y` is the `n`th input to operation `x`.</description>
+    <attr name="maybe" type="int">
+      <description>1 if the analysis is undertain of this dependency; 0 otherwise</description>
+    </attr>
+    <attr name="pos" type="int">
+      <description>Which argument to the source operation the output of the destination operation is</description>
+    </attr>
+  </edge>
+  <edge name="addrdep" sourcetype="dynamic" src="operationruns" dst="operationruns" sourcefile="addr_deps.csv">
+    <description>An `addrdep` edge from `x` to `y` means that the output of operation `y` is used as the address for the memory access by the LOAD or STORE operation `x`.</description>
+    <attr name="maybe" type="int">
+      <description>1 if theour analysis is undertain of this dependency; 0 otherwise</description>
+    </attr>
+  </edge>
+  <edge name="cfdep" sourcetype="dynamic" src="operationruns" dst="operationruns" sourcefile="cf_deps.csv">
+    <description>A `cfdep` edge from `x` to `y` means that `y` is the most recent CBRANCH operation prior to the operation `x`</description>
+  </edge>
+  <edge name="infunctionrun" sourcetype="dynamic" src="instructionruns" dst="functionruns" sourcefile="functionticks.csv">
+    <description>An edge from `x` to `y` means that the `instructionrun` `x` occurred during `functionrun` `y`</description>
+  </edge>
+  <edge name="objectphases" sourcetype="user" src="objects" dst="phases">
+    <description>An edge from `x` to `y` means that the `object` `x` has `y` as one of its phases</description>
+  </edge>
+  <edge name="calls" sourcetype="dynamic" src="functionruns" dst="functionruns" sourcefile="calls.csv">
+    <description>An edge from `x` to `y` means that the `functionrun` `x` contained the call which caused the `functionrun` `y` to run</description>
+  </edge>
+  <edge name="bufferof" sourcetype="dynamic" src="buffers" dst="functionruns" sourcefile="bufferof.csv">
+    <description>An edge from `x` to `y` means that the `buffer` `x` was written or read during the `functionrun` `y`</description>
+  </edge>
+  <edge name="retdep" sourcetype="dynamic" src="functionruns" dst="operationruns" sourcefile="retdeps.csv">
+    <description>An edge from `x` to `y` means that the return value of the `functionrun` `x` is generated by the output of the `operationrun` `y`</description>
+  </edge>
+  <edge name="functionruncontext" sourcetype="dynamic" src="functionruns" dst="operationruns" sourcefile="functionruncontext.csv">
+    <description>An edge from `x` to `y` with bank `b` and offset `f` means that when the `functionrun` `x` was called, the value in memory bank `b` at offset `f` was written by `operationrun` `y`</description>
+    <attr name="bank" type="int">
+      <description>The bank of the value whose content is generated by the dst operation</description>
+    </attr>
+    <attr name="offset" type="int">
+      <description>If `bank` is the register bank, this is the offset within the register address space; if `bank` is the memory bank, then this is the offset from the current stack pointer as of the calling of the function</description>
+    </attr>
+  </edge>
+  <edge name="syscallruncontext" sourcetype="dynamic" src="syscallruns" dst="operationruns" sourcefile="syscallruncontext.csv">
+    <description>An edge from `x` to `y` with bank `b` and offset `f` means that when the `syscallrun` `x` was called, the value in memory bank `b` at offset `f` was written by `operationrun` `y`</description>
+    <attr name="bank" type="int">
+      <description>The bank of the value whose content is generated by the dst operation. Will only be the register address space</description>
+    </attr>
+    <attr name="offset" type="int">
+      <description>The offset within the register address space</description>
+    </attr>
+  </edge>
+  <edge name="makessyscall" sourcetype="dynamic" src="functionruns" dst="syscallruns" sourcefile="syscallruncalls.csv">
+    <description>An edge from `x` to `y` means that during the execution of the `functionrun` `x`, the `syscallrun` `y` was triggered</description>
+  </edge>
+  <edge name="constinputdep" sourcetype="dynamic" src="operationruns" dst="constantuses" sourcefile="const_input_deps.csv">
+    <description>An edge from `x` to `y` with `pos` n means that the operation `x` uses the constant `y` as its `n`th input</description>
+    <attr name="pos" type="int">
+      <description>Which argument to the source operation the destination constant is</description>
+    </attr>
+  </edge>
+  <edge name="constaddrdep" sourcetype="dynamic" src="operationruns" dst="constantuses" sourcefile="const_addr_deps.csv">
+    <description>An edge from `x` to `y` means that the load/store operation `x` uses the constant `y` as its load/store address</description>
+  </edge>
+  <edge name="callerof" sourcetype="static" src="functions" dst="functions" sourcefile="callerof.jsonl">
+    <description>An edge from `x` to `y` exists if `x` may (statically) call `y`</description>
+  </edge>
+  <edge name="successorof" sourcetype="static" src="blocks" dst="blocks" sourcefile="successorof.jsonl">
+    <description>An edge from `x` to `y` exists if `x` may (statically) be a successor of `y`</description>
+  </edge>
+  <edge name="blockof" sourcetype="static" src="blocks" dst="functions" sourcefile="blockof.jsonl">
+    <description>An edge from `x` to `y` exists if `x` is a basic block within the body of the function `y`</description>
+  </edge>
+  <edge name="cdg" sourcetype="static" src="blocks" dst="blocks" sourcefile="cdg.jsonl">
+    <description>An edge from `x` to `y` exists if `x` has `y` as a control depednence in the static control flow graph of the function to which they both belong</description>
+  </edge>
+</schema>

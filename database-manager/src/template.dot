@@ -1,0 +1,24 @@
+digraph {
+  graph [pad="0.5", nodesep="0.5", ranksep="2"];
+  node [shape=plain]
+  rankdir=LR;
+
+  {% for node in nodes %}
+  {{node.name}} [label=<
+  <table border="0" cellborder="1" cellspacing="0">
+  <tr><td port="_collection"><b>{{node.name}}</b></td></tr>
+  {% for attr in node.attributes %}<tr><td port="{{attr.name}}">{{attr.name}}</td></tr>
+  {% endfor %}
+  </table>>];
+  {% endfor %}
+
+  {% for edge in edges %}
+  {{edge.source}}:_collection -> {{edge.dest}}:_collection [label="{{edge.name}}"];
+  {% endfor %}
+
+  {% for node in nodes %}
+  {% for attr in node.attributes %}
+  {% for join in attr.joins %}
+  {{node.name}}:{{attr.name}} <-> {{join.table}}:{{join.field}};
+  {% endfor %}{% endfor %}{% endfor %}
+}

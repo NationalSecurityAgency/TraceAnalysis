@@ -1,0 +1,23 @@
+let tick={0}
+let blockaddr="{1}"
+let mod="{2}"
+let modbase={3}
+let module=first(for m in modules filter concat("/sysroot",m.path) == mod return m)
+for ins in instructionruns filter ins.tick == tick
+let cds=( 
+  for b in blocks filter b.addr == blockaddr and b.module == mod // the b.module, module.path, and the mod variable all need syncing in some form............
+  for c,ce in 1..1 outbound b cdg 
+  for cins in instructionruns filter cins.pc == module.base+c.addr-modbase and cins.tick < ins.tick
+  sort cins.tick desc limit 1
+  for n in range(0,c.end-c.addr)
+  for x in instructionruns filter x.tick == cins.tick+n and x.tick < ins.tick
+  filter x.pc <= c.end+module.base-modbase and c.addr+module.base-modbase <= x.pc sort x.pc desc limit 1
+  return {tick:x.tick})
+let cs=(for r,re in 1..1 outbound ins infunctionrun
+  for n in range(1,10)
+  for ci in instructionruns filter ci.tick == r.starttick-n and ci.pc == r.callsite
+  limit 1
+  return {tick:ci.tick})
+for x in append(cds,cs)
+sort x.tick desc
+return x

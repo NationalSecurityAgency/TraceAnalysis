@@ -1,0 +1,6 @@
+let ptraddr={0}
+let starttick={1}
+let endtick={2}
+for op in operationruns filter op.tick >= starttick and op.tick <= endtick and op.val == ptraddr
+for fr,ce in 1..1 inbound op functionruncontext
+return {starttick:fr.starttick,pc:fr.pc,arg_bank:ce.bank,arg_offs:ce.offset}

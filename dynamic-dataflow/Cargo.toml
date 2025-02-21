@@ -1,0 +1,28 @@
+[package]
+name = "dataflow"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["plugins", "exportcsv"]
+plugins = [
+    "dep:dataflow-cbranch",
+    "dep:dataflow-fntrack",
+    "dep:dataflow-fpmodels",
+    "dep:dataflow-pointsto",
+    "dep:dataflow-syscalls",
+]
+exportarango = ["dep:dataflow-arango"]
+exportcsv = ["dep:dataflow-csv"]
+exportjsonl = ["dep:dataflow-jsonl"]
+
+[dependencies]
+dataflow-arango = { workspace = true, optional = true }
+dataflow-cbranch = { workspace = true, optional = true }
+dataflow-core.workspace = true
+dataflow-csv = { workspace = true, optional = true }
+dataflow-fntrack = { workspace = true, optional = true }
+dataflow-fpmodels = { workspace = true, optional = true }
+dataflow-jsonl = { workspace = true, optional = true }
+dataflow-pointsto = { workspace = true, optional = true }
+dataflow-syscalls = { workspace = true, optional = true }

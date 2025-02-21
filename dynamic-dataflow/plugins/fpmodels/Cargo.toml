@@ -1,0 +1,9 @@
+[package]
+name = "dataflow-fpmodels"
+version = "0.2.0"
+authors = [""]
+edition.workspace = true
+
+[dependencies]
+dataflow-core = { workspace = true, features = [ "plugins" ] }
+log = "0.4"

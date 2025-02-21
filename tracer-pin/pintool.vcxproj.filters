@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{30303a2b-01e7-4aff-bfb1-be87bb4308c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{ac8291e4-97ab-4733-8565-4fc6d81be5e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ia32">
+      <UniqueIdentifier>{2d864ca4-ea22-425e-a514-8f74e92603bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\intel64">
+      <UniqueIdentifier>{5f73b533-935b-4d85-be66-63f0c87b276e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="trace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="record.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="record.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ia32\regs.h">
+      <Filter>Header Files\ia32</Filter>
+    </ClInclude>
+    <ClInclude Include="include\intel64\regs.h">
+      <Filter>Header Files\intel64</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

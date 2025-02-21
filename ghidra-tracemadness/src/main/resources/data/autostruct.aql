@@ -1,0 +1,13 @@
+let initaddr={0}
+let finaladdr={1}
+let inittick={2}
+let finaltick={3}
+for op in operationruns filter op.tick >= inittick and op.tick <= finaltick
+filter (op.opcode == 2 and op.assocd_addr >= initaddr and op.assocd_addr < finaladdr)
+	or (op.bank == 1 and op.addr >= initaddr and op.addr < finaladdr)
+
+let x={index:op.index,tick:op.tick,addr:op.opcode == 2 ? op.assocd_addr : op.addr, size:op.size, val:op.val, is_write: op.opcode != 2}
+
+filter x.addr != null
+
+return distinct {"offset":x.addr-initaddr,"size":x.size}

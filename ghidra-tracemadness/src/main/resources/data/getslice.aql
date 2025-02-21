@@ -1,0 +1,16 @@
+for op in operationruns filter op.index == {0}
+for v,e,p in 1..{1} {2} op inputdep
+filter v.bank == 0 or v.bank == 1
+for ins in instructionruns filter ins.tick == v.tick
+return {
+	"index":v.index,
+	"tick":v.tick,
+	"path":p.vertices[*].index,
+	"disas":ins.disas,
+	"bank":v.bank,
+	"addr":v.bank == 1 ? v.addr : -1,
+	"reg":v.bank == 0 ? first(for r in registers filter r.value == v.addr return r.name) : "",
+	"pc":ins.pc,
+	"value":v.raw,
+	"size":v.size
+}

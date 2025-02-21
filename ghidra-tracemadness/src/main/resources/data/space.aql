@@ -1,0 +1,25 @@
+{0}
+
+// now op is iterating through all the relevant operations...
+
+let x={index:op.index,tick:op.tick,addr:op.opcode == 2 ? op.assocd_addr : op.addr, size:op.size, val:op.val, is_write: op.opcode != 2}
+
+filter x.addr != null
+
+collect addr=x.addr into c
+sort addr
+filter addr != null
+let writes=length(for y in c[*] filter y.x.is_write == true return y)
+let reads=length(for y in c[*] filter y.x.is_write == false return y)
+let minval=min(c[*].x.val)
+let maxval=max(c[*].x.val)
+let ops=(for z in c[*].x limit 11 return {index:z.index,tick:z.tick,addr:z.addr,val:z.val,size:z.size,is_write:z.is_write}) 
+return distinct {
+  addr,
+  reads,
+  writes,
+  minval,
+  maxval,
+  ops
+}
+  

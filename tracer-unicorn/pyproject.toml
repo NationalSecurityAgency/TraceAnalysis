@@ -1,0 +1,23 @@
+[project]
+name = "unicorn_trace"
+description="Tracing support for Unicorn Engine"
+readme = "README.rst"
+requires-python = ">=3.5"
+dependencies = [
+    "unicorn"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx_autodoc_typehints",
+    "enum_tools[sphinx]"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "unicorn_trace.__version__" }

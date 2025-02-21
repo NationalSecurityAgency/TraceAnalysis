@@ -1,0 +1,27 @@
+Dockerfile
+/examples
+/build
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.deb
+
+# Rust
+/target
+
+# Emacs
+*~
+\#*\#
+.\#*
+.dir-locals.el
+
+# C/C++
+.clangd
+compile_commands.json
+*.o
+*.so
+*.a
+
+# Java
+*.jar

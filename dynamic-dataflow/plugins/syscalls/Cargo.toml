@@ -1,0 +1,9 @@
+[package]
+name = "dataflow-syscalls"
+version = "0.1.0"
+authors = [""]
+edition.workspace = true
+
+[dependencies]
+dataflow-core = { workspace = true, features = [ "plugins" ] }
+log = "0.4"

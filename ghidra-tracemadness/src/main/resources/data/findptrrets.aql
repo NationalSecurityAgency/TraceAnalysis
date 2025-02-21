@@ -1,0 +1,6 @@
+let ptraddr={0}
+let starttick={1}
+let endtick={2}
+for op in operationruns filter op.tick >= starttick and op.tick <= endtick and op.val == ptraddr
+for fr in functionruns filter fr.retdep == op.index
+return {starttick:fr.starttick,pc:fr.pc,ret_bank:op.bank,ret_addr:op.addr}

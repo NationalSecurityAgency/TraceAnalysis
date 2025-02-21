@@ -1,0 +1,21 @@
+FROM traceanalysis/dist
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    build-essential gcc gcc-multilib gdb-multiarch
+RUN bash -c "apt-get install -y {binutils,gcc}-arm-linux-gnueabi"
+RUN bash -c "apt-get install -y {binutils,gcc}-mips64-linux-gnuabi64"
+RUN bash -c "apt-get install -y {binutils,gcc}-{aarch64,mips,powerpc,powerpc64,m68k,riscv64,sparc64}-linux-gnu"
+
+# Build the target
+COPY target /app/target
+WORKDIR /app/target
+RUN make multiarch
+
+# Add Scripts
+COPY ./make_sysroot.sh /app/scripts/make_sysroot.sh
+
+# Run example when container starts up
+COPY entrypoint-qemu-user.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

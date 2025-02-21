@@ -1,0 +1,59 @@
+{0}
+
+{1}
+
+	let rs = (
+		for insnfn in unique(
+		  for ins in instructions
+		  return first(for rr,rre in 1..1 outbound ins infunctionrun return rr.startindex)
+		  )
+		for rr in functionruns filter rr.startindex == insnfn 
+		return distinct rr)
+	for r in rs 
+	let endtick=first(for op in operationruns filter op.index == r.endindex return op.tick)
+	sort r.startindex asc
+	let regvals=merge(
+	  for c,ce in 1..1 outbound r functionruncontext
+	  filter ce.bank == 0
+	  return {[ce.offset]:c.val})
+	let regdeps=merge(
+	  for c,ce in 1..1 outbound r functionruncontext
+	  filter ce.bank == 0
+	  return {[ce.offset]:c.index})
+	let stackvals=merge(
+	  for c,ce in 1..1 outbound r functionruncontext
+	  filter ce.bank == 1
+	  return {[ce.offset]:c.val})
+	let stackdeps=merge(
+	  for c,ce in 1..1 outbound r functionruncontext
+	  filter ce.bank == 1
+	  return {[ce.offset]:c.index})
+	let retdep=first(for v,e in 1..1 outbound r retdep return v.index)
+	let parent=first(for v,e in 1..1 inbound r calls return v.starttick)
+	let children=(for v,e in 1..1 outbound r calls return v.starttick)
+	let x={
+		addr:r.pc,
+		starttick:r.starttick,
+		endtick,
+		retval:r.retval,
+		endindex:r.endindex,
+		callsite:r.callsite}
+	
+	return {
+	    type:1,
+	    parent,
+	    children,
+		startindex:r.startindex,
+		starttick:r.starttick,
+		endtick: endtick,
+		endindex:r.endindex,
+		pc:r.pc,
+		regvals,
+		regdeps,
+		stackvals,
+		stackdeps,
+		retval:r.retval,
+		retdep,
+		callsite:r.callsite,
+		stackdepth:r.stackdepth
+	}

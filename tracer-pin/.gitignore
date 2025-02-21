@@ -1,0 +1,42 @@
+# Intel Pin Directories
+pin
+pin-*
+
+# Binaries
+*.tar.gz
+
+# Clangd | 'bear -- ./build.sh'
+.clangd/
+.cache/
+compile_commands.json
+
+# Logs
+*.log
+
+# Builds
+obj-intel64/
+obj-ia32/
+old/trace.o
+old/trace.so
+
+# Testing
+test/
+
+# Default Output File Endings
+*.out
+*.jsonl
+
+# Temporary Directories
+.format/
+
+# Visual Studio
+.vs
+Win32/
+x64/
+pintool.sln
+
+# VS Code
+.vscode/
+
+# Python Scripting
+.venv/

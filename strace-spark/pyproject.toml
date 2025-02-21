@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spark"
+version = "0.13.0"
+description = "Package to convert strace output into a structured format."
+readme = "README.md"
+requires-python = ">=3.7, <4"
+license = {file = "LICENSE.txt"}
+#authors = [
+#  {name = "TODO", email = ""},
+#  {name = "TODO", email = ""},
+#]
+#maintainers = [
+#  {name = "TODO", email = ""}
+#]
+
+[project.optional-dependencies]
+docs = [
+  "sphinx",
+  "sphinx-rtd-theme",
+  "myst-parser",
+]
+dev = [
+  "black",
+  "flake8",
+  "isort",
+  "mypy",
+  "pylint",
+  "spark[docs]",
+]
+
+[project.scripts]
+spark = "spark.__main__:main"
+
+[tool.setuptools.packages.find]
+# All the following settings are optional:
+where = ["src"]  # ["."] by default
+include = ["spark*"]  # ["*"] by default
+exclude = ["spark.tests*", "spark.docs*"]
+namespaces = false  # true by default
+
+[tool.pylsp-mypy]
+enabled = true
+live_mode = true
+strict = true
+exclude = ['docs/source/conf.py']
+
+[tool.mypy]
+files = ['src']
+
+[tool.isort]
+multi_line_output = 5
+include_trailing_comma = true
+use_parentheses = true
+line_length = 88
+
+# Pylint
+[tool.pylint.main]
+ignore-paths = ["docs/source/conf.py"]
+
+[tool.pylint.basic]
+good-names = ["d", "e", "i", "j", "k", "m", "p", "q", "x", "y", "_", "id", "rx", "tx"]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.logging]
+logging-format-style = "new"
+
+[tool.pylint."messages control"]
+disable = ["raw-checker-failed", "bad-inline-option", "locally-disabled", "file-ignored", "suppressed-message", "useless-suppression", "deprecated-pragma", "use-symbolic-message-instead", "bare-except", "invalid-name", "global-statement", "too-few-public-methods"]
+
+[tool.pylint.miscellaneous]
+# List of note tags to take in consideration, separated by a comma.
+notes = ["FIXME", "XXX"]

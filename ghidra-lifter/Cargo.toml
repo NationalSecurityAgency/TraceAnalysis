@@ -1,0 +1,17 @@
+[package]
+name = "ghidra-lifter"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+bitflags.workspace = true
+cxx.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+cxx-build.workspace = true
+
+[[test]]
+name = "no_cache"
+path = "tests/no_cache.rs"

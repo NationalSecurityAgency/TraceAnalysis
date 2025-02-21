@@ -1,0 +1,12 @@
+for op in operationruns filter op.index == {0}
+let forwards=(
+  for v,e,p in 1..20 inbound op inputdep
+  //filter(count(for x in p.vertices filter x.tick > op.tick return x) == 1)
+  return merge(v,{"dist":v.index-op.index}))
+
+let backwards=(
+  for v,e,p in 1..20 outbound op inputdep
+  //filter(count(for x in p.vertices filter x.tick < op.tick return x) == 1)
+  return merge(v,{"dist":op.index-v.index}))
+for v in append(forwards, backwards)
+return distinct {tick:v.tick,index:v.index,dist:v.dist}

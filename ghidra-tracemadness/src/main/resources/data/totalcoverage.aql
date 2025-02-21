@@ -1,0 +1,1 @@
+for ins in instructionruns filter ins.tick > 0 return distinct {pc:ins.pc}

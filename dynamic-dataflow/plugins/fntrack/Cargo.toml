@@ -1,0 +1,13 @@
+[package]
+name = "dataflow-fntrack"
+version = "0.2.0"
+authors = [""]
+edition.workspace = true
+
+[dependencies]
+csv.workspace = true
+dataflow-core = { workspace = true, features = [ "plugins" ] }
+hashbrown.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+log = "0.4"

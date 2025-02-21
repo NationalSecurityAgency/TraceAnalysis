@@ -1,0 +1,10 @@
+let writes=(for op in operationruns filter op.bank == 1 and op.addr == {0} return op)
+let reads=(for op in operationruns filter op.opcode == 2 and op.assocd_bank == 1 and op.assocd_addr == {0} return op)
+for op in append(writes, reads)
+for ins in instructionruns filter ins.tick == op.tick
+for r,re in 1..1 outbound ins infunctionrun
+let fnames=(for ff in functions filter ff.addr == r.pc return concat(ff.namespace,"::",ff.name))
+let fname=length(fnames) > 0 ? first(fnames) : "<unknown>"
+let rw=op.bank == 1 ? "write" : "read"
+sort op.index
+return {index:op.index,tick:ins.tick,pc:ins.pc,disas:ins.disas,val:op.val,function:fname,rw}

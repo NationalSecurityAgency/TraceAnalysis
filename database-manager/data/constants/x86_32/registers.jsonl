@@ -1,0 +1,21 @@
+{"_key":"0","name":"EAX","value":0,"is_gp":true,"size":4}
+{"_key":"4","name":"ECX","value":4,"is_gp":true,"size":4}
+{"_key":"8","name":"EDX","value":8,"is_gp":true,"size":4}
+{"_key":"12","name":"EBX","value":12,"is_gp":true,"size":4}
+{"_key":"16","name":"ESP","value":16,"is_gp":true,"size":4}
+{"_key":"20","name":"EBP","value":20,"is_gp":true,"size":4}
+{"_key":"24","name":"ESI","value":24,"is_gp":true,"size":4}
+{"_key":"28","name":"EDI","value":28,"is_gp":true,"size":4}
+{"_key":"272","name":"FS_OFFSET","value":272,"is_gp":false,"size":4}
+{"_key":"276","name":"GS_OFFSET","value":276,"is_gp":false,"size":4}
+{"_key":"512","name":"CF","value":512,"is_gp": false,"size":1}
+{"_key":"514","name":"PF","value":514,"is_gp": false,"size":1}
+{"_key":"516","name":"AF","value":516,"is_gp": false,"size":1}
+{"_key":"518","name":"ZF","value":518,"is_gp": false,"size":1}
+{"_key":"519","name":"SF","value":519,"is_gp": false,"size":1}
+{"_key":"520","name":"TF","value":520,"is_gp": false,"size":1}
+{"_key":"521","name":"IF","value":521,"is_gp": false,"size":1}
+{"_key":"522","name":"DF","value":522,"is_gp": false,"size":1}
+{"_key":"523","name":"OF","value":523,"is_gp": false,"size":1}
+{"_key":"527","name":"RF","value":527,"is_gp": false,"size":1}
+

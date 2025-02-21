@@ -1,0 +1,117 @@
+<html>
+  <head>
+    <style>
+      table {
+        font-family: Verdana;
+        font-size: 14px;
+        border-collapse: collapse;
+        width: 600px;
+      }
+
+      td,
+      th {
+        border: 1px solid #999;
+        padding: 0.5rem;
+        padding: 10px;
+        text-align: left;
+        margin: 0;
+      }
+
+      tbody tr:nth-child(2n) {
+        background-color: #eee;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        background-color: #333;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Dynamic Database Schema Documentation</h1>
+    <h2>Nodes</h2>
+    {% for node in nodes %}
+    <a name="{{node.name}}" />
+    <h3>{{node.name}}</h3>
+    <p>
+      <b>Description:</b>
+      {{node.description}}
+    </p>
+    <p>
+      <b>Edges:</b>
+    </p>
+
+    <ul>
+      {% for edge in edges %} {% if edge.source == node.name or edge.dest ==
+      node.name %}
+      <li>
+        <a href="#{{edge.name}}">{{edge.name}}</a>:
+        <a href="#{{edge.source}}">{{edge.source}}</a>
+        &#8594;
+        <a href="#{{edge.dest}}">{{edge.dest}}</a>: {{edge.description}}
+      </li>
+      {% endif %} {% endfor %}
+    </ul>
+
+    <p>
+      <b>Attributes:</b>
+    </p>
+
+    <table>
+      <tr>
+        <td>Name</td>
+        <td>Type</td>
+        <td>Description</td>
+        <td>References</td>
+      </tr>
+      {% for attr in node.attributes %}
+      <tr>
+        <td>{{attr.name}}</td>
+        <td>{{attr.type}}</td>
+        <td>{{attr.description}}</td>
+        <td>
+          {% for join in attr.joins %}
+          <a href="#{{join.table}}">{{join.table}}.{{join.field}}</a>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <hr />
+    {% endfor %}
+
+    <h2>Edges</h2>
+    {% for edge in edges %}
+    <a name="{{edge.name}}" />
+    <h3>{{edge.name}} {{edge.source}} &#8594; {{edge.dest}}</h3>
+    <p><b>Description: </b> {{edge.description}}</p>
+    <p>
+      <b>Attributes: </b>
+    </p>
+
+    <table>
+      <tr>
+        <td>Name</td>
+        <td>Type</td>
+        <td>Description</td>
+        <td>References</td>
+      </tr>
+      {% for attr in edge.attributes %}
+      <tr>
+        <td>{{attr.name}}</td>
+        <td>{{attr.type}}</td>
+        <td>{{attr.description}}</td>
+        <td>
+          {% for join in attr.joins %}
+          <a href="#{{join.table}}">{{join.table}}.{{join.field}}</a>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <hr />
+    {% endfor %}
+  </body>
+</html>

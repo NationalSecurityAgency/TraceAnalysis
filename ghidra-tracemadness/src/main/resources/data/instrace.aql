@@ -1,0 +1,116 @@
+{0}
+
+{1}
+
+let ptrsize={2}
+
+	for ins in instructions
+	let pc_count=length(for x in instructionruns filter x.pc == ins.pc return true)
+	let fnrun = first(for rr,rre in 1..1 outbound ins infunctionrun return rr.startindex)
+	  let fncalls = (
+	    for r in functionruns filter r.starttick == ins.tick
+	    	let endtick=first(for z in operationruns filter z.index == r.endindex return z.tick)
+			let regvals=merge(
+	  			for c,ce in 1..1 outbound r functionruncontext
+	  			filter ce.bank == 0
+	  			return {[ce.offset]:c.val})
+			let regdeps=merge(
+	  			for c,ce in 1..1 outbound r functionruncontext
+	  			filter ce.bank == 0
+	  			return {[ce.offset]:c.index})
+			let stackvals=merge(
+	  			for c,ce in 1..1 outbound r functionruncontext
+	  			filter ce.bank == 1
+	  			return {[ce.offset]:c.val})
+			let stackdeps=merge(
+	  			for c,ce in 1..1 outbound r functionruncontext
+	  			filter ce.bank == 1
+	  			return {[ce.offset]:c.index})
+			let retdep=first(for v,e in 1..1 outbound r retdep return v.index)
+			return {
+	    		type:1,
+				startindex:r.startindex,
+				starttick:r.starttick,
+				endtick: endtick,
+				endindex:r.endindex,
+				pc:r.pc,
+				regvals,
+				regdeps,
+				stackvals,
+				stackdeps,
+				retval:r.retval,
+				retdep,
+				callsite:r.callsite,
+				stackdepth:r.stackdepth
+			}
+	  )
+	  let regwrites=(
+	    for op in operationruns filter op.tick == ins.tick and op.bank == 0
+	    let name=first(append(for reg in registers filter reg.value == op.addr and reg.size == op.size return reg.name,
+	      for reg in registers filter reg.value == op.addr - (op.addr%ptrsize)
+	      return op.size != ptrsize ? 
+	        concat(reg.name,"[",op.addr-reg.value,":",op.addr-reg.value+op.size,"]") : 
+	        reg.name
+	    ))
+	    let isflag=first(append(for reg in registers filter reg.value == op.addr return !reg.is_gp, false))
+	    filter !isflag || count(for v,e in 1..100 inbound op inputdep prune v.tick != ins.tick limit 1 return v ) >  0
+	    sort op.addr,op.size desc 
+	    collect a=op.addr into c
+	    return distinct {
+	      relevant: (has(relevant_indices, "empty") or has(relevant_indices, to_string(c[0].op.index))),
+	      index:c[0].op.index, // the index of the operation (for slicing on)
+	      reg:c[0].op.addr,    // the address (in register space) of the register written
+	      size:c[0].op.size,   // the number of bytes (in register space) of the register written
+	      name:c[0].name,      // the name of the register that was written (subscripted, if a subset of that register was written)
+	      val:c[0].op.val,      // the value that was written
+	      raw:c[0].op.raw      // the value that was written
+	    })
+	  let memwrites=(
+	    for op in operationruns filter op.tick == ins.tick and op.bank == 1
+	    collect addr=op.addr into c
+	    return distinct {
+	      relevant: (has(relevant_indices, "empty") or has(relevant_indices, to_string(c[0].op.index))),
+	      index:c[0].op.index, // the index of the operation that performs the write (for slicing on the value of the write)
+	      dest:addr,           // the address in memory that was written
+	      val:c[0].op.val,     // the value that was written
+	      raw:c[0].op.raw,     // the value that was written
+	      size:c[0].op.size    // the number of bytes that were written
+	    })
+	  let memreads=(
+	    for op in operationruns filter op.tick == ins.tick and op.assocd_bank == 1
+	    collect src=op.assocd_addr into c
+	    return distinct {
+	      relevant: (has(relevant_indices, "empty") or has(relevant_indices, to_string(c[0].op.index))),
+	      index:c[0].op.index,        // the index of the operation that performs the write (for slicing on the value of the read)
+	      src,                        // the address that was read
+	      val:c[0].op.val,            // the value that was read
+	      raw:c[0].op.raw,            // the value that was read
+	      size:c[0].op.size           // the number of bytes that were read
+	    })
+	  let memaddrs=(
+	    for op in operationruns filter op.tick == ins.tick
+	    for a,ae in 1..1 outbound op addrdep
+	    collect index=a.index into c
+	    return distinct {
+	      relevant: (has(relevant_indices, "empty") or has(relevant_indices, to_string(c[0].op.index))),    
+	      index:index,                                                                            // the index of operation that computes the address (for slicing on the address of the read/write)
+	      dependentindex:c[0].op.index,                                                              // the index of the operation that uses the address
+	      dependencytype:c[0].op.bank == 1 ? "store" : (c[0].op.opcode == 2 ? "load" : "other"),     // the type of use of the address
+	      val:c[0].a.val,                                                                            // the actual address that was referenced
+	      raw:c[0].a.raw,                                                                            // the actual address that was referenced
+	      size:c[0].a.size
+	    })
+	sort ins.tick
+	    
+	return {
+	  type:0,
+	  fnrun,
+	  fncalls,
+	  tick:ins.tick,
+	  pc:ins.pc,
+	  pc_count,
+	  disassembly:ins.disas,
+	  regwrites,
+	  memwrites,
+	  memreads,
+	  memaddrs}

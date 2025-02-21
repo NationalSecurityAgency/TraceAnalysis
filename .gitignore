@@ -1,0 +1,31 @@
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.deb
+
+# Rust
+/target
+
+# Emacs
+*~
+\#*\#
+.\#*
+.dir-locals.el
+
+# C/C++
+.clangd
+compile_commands.json
+*.o
+*.so
+*.a
+
+# Java
+*.jar
+
+# Default build directory
+build/
+
+# Auto-generated when building documentation.
+docs/src/database/schema.md
+docs/src/database/schema.png

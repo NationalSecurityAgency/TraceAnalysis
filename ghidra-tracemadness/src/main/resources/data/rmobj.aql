@@ -1,0 +1,6 @@
+for o in objects filter o._key == "{0}"
+let edgekeys=(for v,e in 1..1 outbound o objectphases return e._key)
+let vertexkeys=(for v,e in 1..1 outbound o objectphases return v._key)
+let r=(for k in edgekeys remove k in objectphases)
+let rv=(for k in vertexkeys remove k in phases)
+remove o in objects

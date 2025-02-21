@@ -1,0 +1,23 @@
+[package]
+name = "tracer-icicle"
+version = "0.1.0"
+edition.workspace = true
+
+[[bin]]
+name = "icicle_linux"
+
+[features]
+
+[dependencies]
+pcode = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+icicle-cpu = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+icicle-vm = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+icicle-jit = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+icicle-mem = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+icicle-linux = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+icicle-fuzzing = { git = "https://github.com/icicle-emu/icicle-emu.git", rev = "9ac068dfca7db588878d1832c757b870d3ca667e" }
+trace.workspace = true
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter", "ansi"] }
+tracing = { workspace = true, features = ["release_max_level_trace"] }
+target-lexicon.workspace = true
+hashbrown.workspace = true

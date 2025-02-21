@@ -1,0 +1,62 @@
+[workspace]
+members = [
+    "database-manager",
+    "dynamic-dataflow",
+    "dynamic-dataflow/core",
+    "dynamic-dataflow/export/arango",
+    "dynamic-dataflow/export/csv",
+    "dynamic-dataflow/export/jsonl",
+    "dynamic-dataflow/plugins/cbranch",
+    "dynamic-dataflow/plugins/fntrack",
+    "dynamic-dataflow/plugins/fpmodels",
+    "dynamic-dataflow/plugins/pointsto",
+    "dynamic-dataflow/plugins/syscalls",
+    "dynamic-trace",
+    "ghidra-lifter",
+    "tracer-icicle",
+    "tracer-panda",
+]
+default-members = ["dynamic-dataflow", "dynamic-trace"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+anyhow = "1.0.71"
+clap = { version = "4.3.0", features = ["derive"] }
+bitflags = "2.4.1"
+bytestream = "0.4.1"
+csv = "1.1"
+cxx = "1.0.109"
+cxx-build = "1.0.109"
+dataflow = { path = "dynamic-dataflow" }
+dataflow-arango = { path = "dynamic-dataflow/export/arango" }
+dataflow-cbranch = { path = "dynamic-dataflow/plugins/cbranch" }
+dataflow-core = { path = "dynamic-dataflow/core" }
+dataflow-csv = { path = "dynamic-dataflow/export/csv" }
+dataflow-fntrack = { path = "dynamic-dataflow/plugins/fntrack" }
+dataflow-fpmodels = { path = "dynamic-dataflow/plugins/fpmodels" }
+dataflow-jsonl = { path = "dynamic-dataflow/export/jsonl" }
+dataflow-pointsto = { path = "dynamic-dataflow/plugins/pointsto" }
+dataflow-syscalls = { path = "dynamic-dataflow/plugins/syscalls" }
+ghidra-lifter = { path = "ghidra-lifter" }
+hashbrown = "0.9"
+memmap = "0.7.0"
+num-derive = "0.2"
+num-traits = "0.2"
+panda-re = { version = "0.46.2", default-features = false }
+pdb = "0.8.0"
+reqwest = "0.11.20"
+rusqlite = "0.31.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+stderrlog = "0.5.4"
+thiserror = "1.0.56"
+tokio = "1.32.0"
+target-lexicon = "0.12.14"
+trace = { path = "dynamic-trace" }
+tracer-icicle = { path = "tracer-icicle" }
+tracer-panda = { path = "tracer-panda" }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"

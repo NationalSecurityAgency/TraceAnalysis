@@ -1,0 +1,3 @@
+let mintick = first(for run in instructionruns sort run.tick asc limit 1 return run.tick)
+let maxtick = first(for run in instructionruns sort run.tick desc limit 1 return run.tick)
+return {mintick:mintick, maxtick:maxtick}

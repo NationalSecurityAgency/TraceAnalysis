@@ -1,0 +1,70 @@
+{
+	"allobjs": {
+		"description": "Get all objects",
+		"query": "allobjs.aql"
+	},
+	"rmobj": {
+		"description": "Remove object and its phases",
+		"query": "rmobj.aql"
+	},
+	"opdeps": {
+		"description": "Operation immediate dependencies",
+		"query": "opdeps.aql"
+	},
+	"minmaxtick": {
+		"description": "Min and max tick",
+		"query": "minmaxtick.aql"
+	},
+	"objuses": {
+		"description": "Get all uses of an address",
+		"query": "objuses.aql"		
+	},
+	"accesses": {
+		"description": "Get all memory accesses",
+		"query": "accesses.aql"		
+	},
+    "autostruct":{
+		"description":"Auto Struct",
+		"query":"autostruct.aql"
+    },
+    "instrace":{
+		"description":"Display Instruction Trace",
+		"query": "instrace.aql"
+	},
+    "fntrace":{
+		"description":"Display Function Trace",
+		"query": "fntrace.aql"
+	},
+    "fullspace":{
+		"description":"Display Instruction Trace",
+		"query": "space.aql"
+	},
+    "functioninfo":{
+		"description":"Get information about the functionrun containing a given tick",
+		"query": "functioninfo.aql"
+	},
+    "modules":{
+		"description":"Get the memory map of modules",
+		"query": "modules.aql"
+	},
+    "getslice":{
+		"description":"Get a slice of instructions",
+		"query": "getslice.aql"
+	},
+    "findptrargs":{
+		"description":"Find potential instances of the usage of a pointer value as a function argument",
+		"query": "findptrargs.aql"
+	},
+    "findptrrets":{
+		"description":"Find potential instances of the usage of a pointer value as a function return value",
+		"query": "findptrrets.aql"
+	},
+    "coverage":{
+		"description":"Return the pc values for all instructions that are actually run within the given trace.",
+		"query":"totalcoverage.aql"
+    },
+    "why": {
+    	"description": "WHY",
+    	"query": "why.aql"
+    }   
+}

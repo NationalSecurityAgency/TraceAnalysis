@@ -1,0 +1,45 @@
+[package]
+name = "trace"
+version = "0.1.0"
+edition.workspace = true
+
+[[bin]]
+name = "tm-analyze"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-analyze-modeling"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-count"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-split"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-print"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-truncate"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-index"
+required-features = ["dynamic-trace-bin"]
+
+[features]
+dynamic-trace-bin = ["dep:anyhow", "dep:clap", "dep:phf", "dep:stderrlog"]
+
+[dependencies]
+anyhow = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+dataflow.workspace = true
+log = "0.4.20"
+memmap.workspace = true
+phf = { version = "0.11.2", features = ["macros"], optional = true }
+stderrlog = { version = "0.5.4", optional = true }
+thiserror.workspace = true

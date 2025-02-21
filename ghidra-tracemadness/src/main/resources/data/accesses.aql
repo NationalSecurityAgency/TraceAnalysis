@@ -1,0 +1,19 @@
+{0}
+
+// now op is iterating through all the relevant operations...
+
+for ins in instructionruns filter ins.tick == op.tick
+
+let x={
+	index:op.index,
+	tick:op.tick,
+	addr:op.opcode == 2 ? op.assocd_addr : op.addr, 
+	size:op.size, 
+	val:op.val, 
+	is_write: op.opcode != 2,
+	pc:ins.pc,
+	disas:ins.disas}
+
+filter x.addr != null
+
+return x

@@ -1,0 +1,3 @@
+for m in modules
+sort m.base
+return m

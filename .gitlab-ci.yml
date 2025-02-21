@@ -1,0 +1,23 @@
+stages:
+  - test
+  - deploy
+
+test-all:
+  image: "${CI_REGISTRY_IMAGE}/build:latest"
+  stage: test
+  script:
+    - just test
+  only:
+    - internal
+
+pages:
+  image: "${CI_REGISTRY_IMAGE}/build:latest"
+  stage: deploy
+  script:
+    - just doc
+    - mv build/docs public
+  artifacts:
+    paths:
+      - public
+  only:
+    - internal

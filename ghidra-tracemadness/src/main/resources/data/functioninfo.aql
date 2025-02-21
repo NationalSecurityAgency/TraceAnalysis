@@ -1,0 +1,6 @@
+let currenttick={0}
+for ins in instructionruns filter ins.tick == currenttick
+for r,re in 1..1 outbound ins infunctionrun
+let endtick=first(for op in operationruns filter op.index == r.endindex return op.tick)
+let calltick=first(for n in range(0,10) for x in instructionruns filter x.tick == r.starttick-n and x.pc == r.callsite sort n asc return x.tick)
+return merge(r,{calltick,endtick})

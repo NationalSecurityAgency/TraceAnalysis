@@ -1,0 +1,12 @@
+[package]
+name = "dataflow-jsonl"
+version = "0.1.0"
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+dataflow-core.workspace = true
+log = "0.4"
+serde_json.workspace = true
