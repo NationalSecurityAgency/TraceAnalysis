@@ -26,3 +26,22 @@ ln -s . build/docs/traceanalysis
 python3 -m http.server --directory build/docs/
 # Visit http://localhost:8000/traceanalysis/
 ```
+
+## Acknowledgements
+
+Thank you to the following individuals who (among others) contributed to the initial research and development:
+
+- Luke Mains
+- Jean-Paul Miller
+- Tod Amon
+- Jon Bradley
+- Hamilton Link
+- Ricardo Alanis
+- Nasser Salim
+
+## License
+
+<sup>
+Licensed under either of <a href="LICENSE-APACHE">Apache License, Version
+2.0</a> or <a href="LICENSE-MIT">MIT license</a> at your option.
+</sup>
