@@ -15,6 +15,7 @@ members = [
     "ghidra-lifter",
     "tracer-icicle",
     "tracer-panda",
+    "tracer-qemu-user",
 ]
 default-members = ["dynamic-dataflow", "dynamic-trace"]
 resolver = "2"
@@ -42,6 +43,7 @@ dataflow-pointsto = { path = "dynamic-dataflow/plugins/pointsto" }
 dataflow-syscalls = { path = "dynamic-dataflow/plugins/syscalls" }
 ghidra-lifter = { path = "ghidra-lifter" }
 hashbrown = "0.9"
+libc = "0.2.170"
 memmap = "0.7.0"
 num-derive = "0.2"
 num-traits = "0.2"
