@@ -216,5 +216,5 @@ COPY --from=builder /opt/pin /opt/pin
 ENV PIN_PLUGINS=/usr/local/lib/pin \
     QEMU_PLUGINS=/usr/local/lib/qemu
 COPY --from=builder /opt/traceanalysis/traceanalysis_0.1-0.deb \
-    /var/cache/apt/archives/traceanalysis_0.1-0.deb
-RUN apt-get install --fix-missing -y /var/cache/apt/archives/traceanalysis_0.1-0.deb
+    /tmp/traceanalysis_0.1-0.deb
+RUN apt-get update && apt-get install --fix-missing -y /tmp/traceanalysis_0.1-0.deb
