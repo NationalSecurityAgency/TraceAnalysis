@@ -12,6 +12,7 @@ members = [
     "dynamic-dataflow/plugins/pointsto",
     "dynamic-dataflow/plugins/syscalls",
     "dynamic-trace",
+    "gdb-tracer-server",
     "ghidra-lifter",
     "tracer-icicle",
     "tracer-panda",
