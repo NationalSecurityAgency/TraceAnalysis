@@ -6,13 +6,18 @@
 
 /* Functions */
 
+VOID
+FreeWriteInfo(void * data);
+  
 // Pin Specific Emit Functions
 VOID
 EmitPc(THREADID threadid, ADDRINT pc, USIZE ins_size);
 VOID
 EmitInstruction(THREADID threadid, ADDRINT pc, USIZE ins_size);
 VOID
-EmitMemWrite(THREADID threadid, ADDRINT addr, UINT32 write_size);
+PrepMemWrite(THREADID threadid, ADDRINT addr, UINT32 write_size);
+VOID
+EmitMemWrite(THREADID threadid);
 VOID
 EmitMemRead(THREADID threadid, ADDRINT addr, UINT32 read_size);
 VOID

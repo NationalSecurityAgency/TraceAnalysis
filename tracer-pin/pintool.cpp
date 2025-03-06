@@ -23,6 +23,13 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE,
 static FILE* OutFile;
 static FILE* MapFile;
 
+TLS_KEY WRITE_INFO_KEY;
+
+typedef struct {
+  ADDRINT addr;
+  USIZE size;
+} write_info_t;
+
 /*
  * Global LOCK to synchronize instructions across threads.
  *
@@ -39,6 +46,10 @@ static PIN_LOCK TickLock;
  * record when a fatal exception occurs. Should always be protected by TickLock.
  */
 static USIZE CurInstSize;
+
+VOID FreeWriteInfo(void * data) {
+  free(data);
+}
 
 INT32
 Usage()
@@ -82,6 +93,7 @@ main(int argc, char** argv)
     }
 
     // Start pintool
+    WRITE_INFO_KEY = PIN_CreateThreadDataKey(FreeWriteInfo);
     IMG_AddInstrumentFunction(WriteMapToJsonFile, 0);
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddContextChangeFunction(ContextChange, 0);
@@ -113,59 +125,74 @@ Instruction(INS ins, VOID* _v)
                    CALL_ORDER_FIRST,
                    IARG_END);
 
-    UINT32 opCount = INS_OperandCount(ins);
-    for (UINT32 op = 0; op < opCount; op++) {
-        // TODO: Write Registers
-        if (INS_OperandIsReg(ins, op)) {
-            REG reg = INS_OperandReg(ins, op);
+    int reads = INS_MaxNumRRegs(ins);
+    for(int i = 0; i < reads; i++) {
+      REG reg = INS_RegR(ins, i);
+      if (REG_INVALID() == reg) {
+	continue;
+      }
+      if(!REG_is_gr_type(REG_FullRegName(reg)) && !REG_is_stackptr_type(REG_FullRegName(reg)) && !REG_is_any_vector_reg(REG_FullRegName(reg)) && !REG_is_st(REG_FullRegName(reg))) {
+	continue;
+      }
+      // Emit RegRead Record
+      if(REG_is_any_vector_reg(REG_FullRegName(reg)) || REG_is_st(REG_FullRegName(reg))) {
 
-            if (REG_INVALID() == reg) {
-                // TODO: Log error?
-                continue;
-            }
-
-            // TODO: check for fs/gs registers?
-            if (!REG_is_gr(reg)) {
-                continue;
-            }
-
-            // Emit RegRead Record
-            if (INS_RegRContain(ins, reg)) {
-                INS_InsertCall(ins,
-                               IPOINT_BEFORE,
-                               (AFUNPTR)EmitRegRead,
-                               IARG_THREAD_ID,
-                               IARG_UINT32,
-                               reg,
-                               IARG_REG_VALUE,
-                               reg,
-                               IARG_END);
-            }
-
-            // Emit RegWrite Record
-            if (INS_RegWContain(ins, reg) && INS_IsValidForIpointAfter(ins)) {
-                INS_InsertCall(ins,
-                               IPOINT_AFTER,
-                               (AFUNPTR)EmitRegWrite,
-                               IARG_THREAD_ID,
-                               IARG_UINT32,
-                               reg,
-                               IARG_REG_VALUE,
-                               reg,
-                               IARG_END);
-            }
-        }
+      } else {
+	INS_InsertCall(ins,
+		     IPOINT_BEFORE,
+		     (AFUNPTR)EmitRegRead,
+		     IARG_THREAD_ID,
+		     IARG_UINT32,
+		     reg,
+		     IARG_REG_VALUE,
+		     reg,
+		     IARG_END);
+      }
     }
+    
+    int writes = INS_MaxNumWRegs(ins);
+    for(int i = 0; i < writes; i++) {
+      REG reg = INS_RegW(ins, i);
+      if (REG_INVALID() == reg) {
+	continue;
+      }
+      if(!REG_is_gr_type(REG_FullRegName(reg)) && !REG_is_stackptr_type(REG_FullRegName(reg)) && !REG_is_any_vector_reg(REG_FullRegName(reg)) && !REG_is_st(REG_FullRegName(reg))) {
+	continue;
+      }
+      // Emit RegWrite Record
+      if(REG_is_any_vector_reg(REG_FullRegName(reg)) || REG_is_st(REG_FullRegName(reg))) {
+	
+      } else {
+	if(INS_IsValidForIpointAfter(ins)) {
+	  INS_InsertCall(ins,
+			 IPOINT_AFTER,
+			 (AFUNPTR)EmitRegWrite,
+			 IARG_THREAD_ID,
+			 IARG_UINT32,
+			 reg,
+			 IARG_REG_VALUE,
+			 reg,
+			 IARG_END);
+	}
+	if(INS_IsValidForIpointTakenBranch(ins)) {
+	  INS_InsertCall(ins,
+			 IPOINT_TAKEN_BRANCH,
+			 (AFUNPTR)EmitRegWrite,
+			 IARG_THREAD_ID,
+			 IARG_UINT32,
+			 reg,
+			 IARG_REG_VALUE,
+			 reg,
+			 IARG_END);
+	}
+      }
+    }
+    
 
     // Write Memory Reads/Writes
     UINT32 memOperands = INS_MemoryOperandCount(ins);
 
     for (UINT32 memOp = 0; memOp < memOperands; memOp++) {
-        // Ignore unconventional memOps (vectorized memory ref)
-        if (!INS_IsStandardMemop(ins)) {
-            continue;
-        }
-
         // Emit Memory Read Record
         if (INS_MemoryOperandIsRead(ins, memOp)) {
             INS_InsertPredicatedCall(ins,
@@ -184,39 +211,22 @@ Instruction(INS ins, VOID* _v)
             // Hook after memory is written to save exact bytes.
             if (INS_IsValidForIpointAfter(ins)) {
                 INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               (AFUNPTR)PrepMemWrite,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYOP_EA,
+                               memOp,
+                               IARG_MEMORYOP_SIZE,
+                               memOp,
+                               IARG_END);
+            }
+            if (INS_IsValidForIpointAfter(ins)) {
+                INS_InsertCall(ins,
                                IPOINT_AFTER,
                                (AFUNPTR)EmitMemWrite,
                                IARG_THREAD_ID,
-                               IARG_MEMORYOP_EA,
-                               memOp,
-                               IARG_MEMORYOP_SIZE,
-                               memOp,
                                IARG_END);
             }
-
-            // Handle branching case (Ex. cmov). Write record if branch is taken
-            if (INS_IsValidForIpointTakenBranch(ins)) {
-                INS_InsertCall(ins,
-                               IPOINT_TAKEN_BRANCH,
-                               (AFUNPTR)EmitMemWrite,
-                               IARG_THREAD_ID,
-                               IARG_MEMORYOP_EA,
-                               memOp,
-                               IARG_MEMORYOP_SIZE,
-                               memOp,
-                               IARG_END);
-            }
-
-            /*
-             * NOTE:
-             * Unsure if IPOINT_TAKEN_BRANCH and IPOINT_AFTER could overlap.
-             * Maybe needs to be an `else-if`, but only if your expecting to run
-             * non-standard / malicous code. For example, if you jumped to the
-             * next instruction you might get a double write record.
-             *
-             * I would rather err on the side of emitting extra records rather than
-             * missing some records.
-             */
         }
     }
 
@@ -330,9 +340,11 @@ ContextChange(THREADID threadid,
 }
 
 VOID
-ThreadStart(THREADID _threadid, CONTEXT* _ctxt, INT32 _flags, VOID* _v)
+ThreadStart(THREADID threadid, CONTEXT* _ctxt, INT32 _flags, VOID* _v)
 {
-    LOG(decstr(_threadid) + "Thread Initialized\n");
+    LOG(decstr(threadid) + "Thread Initialized\n");
+    void *write_info = (void *)malloc(sizeof(write_info_t));
+    PIN_SetThreadData(WRITE_INFO_KEY, write_info, threadid);
 }
 
 VOID
@@ -407,9 +419,13 @@ EmitInstruction(THREADID threadid, ADDRINT pc, USIZE ins_size)
     UINT8* data = (UINT8*)alloca(data_size);
 
     *(ADDRINT*)data = pc;
-    PIN_SafeCopy(data + sizeof(pc), (VOID*)pc, ins_size);
+    USIZE copied = PIN_SafeCopy(data + sizeof(pc), (VOID*)pc, ins_size);
 
-    WriteRecordToFile(RecordKind::InstructionRecord, data, data_size, OutFile);
+    if (copied != ins_size) {
+        cerr << "[WARN] Could not copy " << ins_size << " bytes for instruction at " << std::hex << pc << std::dec << endl;
+    }
+
+    WriteRecordToFile(RecordKind::InstructionRecord, data, sizeof(pc) + copied, OutFile);
 
     // Release TickLock because we are finishied writing records for this
     // instruction
@@ -417,15 +433,28 @@ EmitInstruction(THREADID threadid, ADDRINT pc, USIZE ins_size)
 }
 
 VOID
-EmitMemWrite(THREADID threadid, ADDRINT addr, UINT32 write_size)
+EmitMemWrite(THREADID threadid)
 {
-    USIZE data_size = sizeof(addr) + write_size;
-    UINT8* data = (UINT8*)alloca(data_size);
+  write_info_t *write_info = (write_info_t *)PIN_GetThreadData(WRITE_INFO_KEY, threadid);
+  USIZE data_size = sizeof(ADDRINT) + write_info->size;
+  UINT8* data = (UINT8*)alloca(data_size);
+  
+  *(ADDRINT*)data = write_info->addr;
+  USIZE copied = PIN_SafeCopy(data + sizeof(ADDRINT), (VOID*)(write_info->addr), write_info->size);
 
-    *(ADDRINT*)data = addr;
-    PIN_SafeCopy(data + sizeof(addr), (VOID*)addr, write_size);
+  if (copied > 0) {
+    WriteRecordToFile(RecordKind::MemWriteRecord, data, sizeof(ADDRINT) + copied, OutFile);
+  } else {
+    cerr << "[WARN] Reported write of " << data_size << " bytes, but 0 bytes were successfully copied, skipping..." << endl;
+  }
+}
 
-    WriteRecordToFile(RecordKind::MemWriteRecord, data, data_size, OutFile);
+VOID
+PrepMemWrite(THREADID threadid, ADDRINT addr, UINT32 write_size)
+{
+  write_info_t *write_info = (write_info_t *)PIN_GetThreadData(WRITE_INFO_KEY, threadid);
+  write_info->size = write_size;
+  write_info->addr = addr;
 }
 
 VOID
@@ -435,9 +464,13 @@ EmitMemRead(THREADID threadid, ADDRINT addr, UINT32 read_size)
     UINT8* data = (UINT8*)alloca(data_size);
 
     *(ADDRINT*)data = addr;
-    PIN_SafeCopy(data + sizeof(addr), (VOID*)addr, read_size);
+    USIZE copied = PIN_SafeCopy(data + sizeof(addr), (VOID*)addr, read_size);
 
-    WriteRecordToFile(RecordKind::MemReadRecord, data, data_size, OutFile);
+    if (copied > 0) {
+      WriteRecordToFile(RecordKind::MemReadRecord, data, sizeof(ADDRINT) + copied, OutFile);
+    } else {
+        cerr << "[WARN] Reported read of " << data_size << " bytes, but 0 bytes were successfully copied, skipping..." << endl;
+    }
 }
 
 VOID
