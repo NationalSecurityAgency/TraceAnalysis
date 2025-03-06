@@ -4,6 +4,7 @@ use std::{fs, io};
 pub mod index;
 
 pub mod record;
+pub mod collector;
 
 // Expose record::Arch as a top level import
 pub use record::Arch;

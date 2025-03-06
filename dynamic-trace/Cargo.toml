@@ -28,6 +28,14 @@ name = "tm-truncate"
 required-features = ["dynamic-trace-bin"]
 
 [[bin]]
+name = "tm-filter-pc"
+required-features = ["dynamic-trace-bin"]
+
+#[[bin]]
+#name = "tm-filter-time"
+#required-features = ["dynamic-trace-bin"]
+
+[[bin]]
 name = "tm-index"
 required-features = ["dynamic-trace-bin"]
 
@@ -38,6 +46,7 @@ dynamic-trace-bin = ["dep:anyhow", "dep:clap", "dep:phf", "dep:stderrlog"]
 anyhow = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 dataflow.workspace = true
+hashbrown.workspace = true
 log = "0.4.20"
 memmap.workspace = true
 phf = { version = "0.11.2", features = ["macros"], optional = true }

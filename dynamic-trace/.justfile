@@ -15,6 +15,8 @@ build:
     cp {{ project-root }}/target/release/tm-split   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-truncate   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-index   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-filter-pc   {{ build-dir }}/trace-management/
+    #cp {{ project-root }}/target/release/tm-filter-time   {{ build-dir }}/trace-management/
 
 doc:
     #!/usr/bin/env bash

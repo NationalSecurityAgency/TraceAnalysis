@@ -139,6 +139,12 @@ fn main() -> Result<()> {
                         Meta::CallModeledOpsEnd(_) => {
                             try_cont!(writeln!(stderr, "CallModeledOpsEnd"))
                         }
+                        Meta::ModelEffectsBegin(record) => {
+                            try_cont!(writeln!(stderr, "ModelEffectsBegin {}", record.name()))
+                        }
+                        Meta::ModelEffectsEnd(_) => {
+                            try_cont!(writeln!(stderr, "ModelEffectsEnd"))
+                        }
                         Meta::CallEnd(record) => {
                             try_cont!(writeln!(
                                 stderr,

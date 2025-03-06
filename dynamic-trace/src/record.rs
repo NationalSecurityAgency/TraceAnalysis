@@ -580,6 +580,10 @@ impl<'d> UnknownFileMeta<'d> {
 /// - 7 = [`AddressDependencyEdge`]
 /// - 8 = [`RegisterDependencyEdge`]
 /// - 9 = [`MemoryAllocated`]
+/// - 10 = [`MemoryFreed`]
+/// - 11 = [`MemoryReallocated`]
+/// - 12 = [`ModelEffectsBegin`]
+/// - 13 = [`ModelEffectsEnd`]
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Meta<'d> {
@@ -589,6 +593,8 @@ pub enum Meta<'d> {
     CallBegin(CallBegin),
     CallModeledOpsEnd(CallModeledOpsEnd),
     CallEnd(CallEnd),
+    ModelEffectsBegin(ModelEffectsBegin),
+    ModelEffectsEnd(ModelEffectsEnd),
     OperandUncertain(OperandUncertain),
     AddressDependencyEdge(AddressDependencyEdge),
     RegisterDependencyEdge(RegisterDependencyEdge),
@@ -664,6 +670,16 @@ impl<'d> Meta<'d> {
                     .map_err(|e| Error::wrap("metamemoryreallocated", e))?;
                 Ok(Self::MemoryReallocated(record))
             }
+            12 => {
+                let record = ModelEffectsBegin::parse(contents)
+                    .map_err(|e| Error::wrap("metamodeleffectsbegin", e))?;
+                Ok(Self::ModelEffectsBegin(record))
+            }
+            13 => {
+                let record = ModelEffectsEnd::parse(contents)
+                    .map_err(|e| Error::wrap("metamodeleffectsend", e))?;
+                Ok(Self::ModelEffectsEnd(record))
+            }
             n => Ok(Self::Unknown(UnknownMeta {
                 tag: n,
                 contents: Cow::from(contents),
@@ -677,6 +693,8 @@ impl<'d> Meta<'d> {
             Self::ThreadId(record) => record.emit(buffer),
             Self::ProcessId(record) => record.emit(buffer),
             Self::CallBegin(record) => record.emit(buffer),
+            Self::ModelEffectsBegin(record) => record.emit(buffer),
+            Self::ModelEffectsEnd(record) => record.emit(buffer),
             Self::CallModeledOpsEnd(record) => record.emit(buffer),
             Self::CallEnd(record) => record.emit(buffer),
             Self::OperandUncertain(record) => record.emit(buffer),
@@ -798,6 +816,91 @@ impl ProcessId {
     }
 }
 
+/// Record indicating that following records prior to the next
+/// ModelEffectsEnd meta record are effects modelled by the named
+/// model
+///
+/// # Format
+///
+/// `| model_name: String |`
+///
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ModelEffectsBegin {
+    model_name: String,
+}
+
+impl ModelEffectsBegin {
+    /// Constructs a record that indicates a call to a function
+    pub fn new(model_name: String) -> Self {
+        Self { model_name }
+    }
+
+    /// Returns the callee function's name.
+    pub fn name(&self) -> &str {
+        &self.model_name
+    }
+
+    fn parse(bytes: &[u8]) -> Result<Self, ParseError> {
+        let len: usize = bytes[..MAX_MODEL_NAME_LEN]
+            .iter()
+            .position(|c| *c == 0)
+            .unwrap_or(MAX_MODEL_NAME_LEN);
+
+        let name = String::from_utf8(bytes[..len].to_vec())
+            .map_err(|_| Error::record("Could not read model name", Error::BadData))?;
+        Ok(Self { model_name: name })
+    }
+
+    fn emit(&self, buffer: &mut Vec<u8>) {
+        let mut bytes = [
+            // (0b001100, 0b01): (Meta, length is 1 byte long)
+            0x31u8, // 0x22 bytes follow; 0x20 byte model name, 2 metadata
+            0x22, // vlen
+            0x0c, // ModelEffectsBegin tag
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, // 0x20 bytes (MAX_MODEL_NAME_LEN) for model name
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x23, // rlen
+        ];
+        let name = self.model_name.clone().into_bytes();
+        let copy_len = name.len().min(MAX_MODEL_NAME_LEN);
+        bytes[3..(3 + copy_len)].copy_from_slice(&name[..copy_len]);
+        buffer.extend_from_slice(&bytes)
+    }
+}
+
+/// Record indicating that following records prior to the next
+/// ModelEffectsEnd meta record are effects modelled by the named
+/// model
+///
+/// # Format
+///
+/// `| model_name: String |`
+///
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ModelEffectsEnd;
+
+impl ModelEffectsEnd {
+    /// Constructs a record that indicates a call to a function
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    fn parse(_bytes: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self)
+    }
+
+    fn emit(&self, buffer: &mut Vec<u8>) {
+        let bytes = [
+            // (0b001100, 0b01): (Meta, length is 1 byte long)
+            0x31u8, 0x2,  // vlen
+            0x0d, // ModelEffectsEnd tag
+            0x3,  // rlen
+        ];
+        buffer.extend_from_slice(&bytes)
+    }
+}
+
 /// Record indicating that following records prior to the next CallEnd meta
 /// record are modeled inputs and outputs of a function call.
 ///
@@ -812,13 +915,14 @@ pub struct CallBegin {
 }
 
 const MAX_FN_NAME_LEN: usize = 0x20;
+const MAX_MODEL_NAME_LEN: usize = 0x20;
 
 impl CallBegin {
     /// Constructs a record that indicates a call to a function
     pub fn new(function_name: String, address: u64) -> Self {
         Self {
-            function_name: function_name,
-            address: address,
+            function_name,
+            address,
         }
     }
 
@@ -843,7 +947,7 @@ impl CallBegin {
         let (address, _) = parse_le64(&bytes[MAX_FN_NAME_LEN..])?;
         Ok(Self {
             function_name: name,
-            address: address,
+            address,
         })
     }
 
@@ -894,8 +998,8 @@ impl CallModeledOpsEnd {
         let bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x02 bytes follow.
-            0x02, // CallModeledOpsEnd record
-            0x04, // rlen
+            0x02,   // CallModeledOpsEnd record
+            0x04,   // rlen
             0x03,
         ];
         buffer.extend_from_slice(&bytes)
@@ -938,8 +1042,8 @@ impl CallEnd {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0a bytes follow.
-            0x0a, // CallEnd record
-            0x05, // Will receive associated call instruction's address
+            0x0a,   // CallEnd record
+            0x05,   // Will receive associated call instruction's address
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // rlen
             0x0b,
         ];
@@ -971,8 +1075,8 @@ impl OperandUncertain {
         let bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x02 bytes follow.
-            0x02, // OperandUncertain record
-            0x06, // rlen
+            0x02,   // OperandUncertain record
+            0x06,   // rlen
             0x03,
         ];
         buffer.extend_from_slice(&bytes)
@@ -1010,7 +1114,7 @@ impl AddressDependencyEdge {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0a bytes follow.
-            0x0a, // AddressDependencyEdge record
+            0x0a,   // AddressDependencyEdge record
             0x07,
             // Will receive the address of the pointer to serve as the address dependency edge for
             // the memory access to follow
@@ -1056,7 +1160,7 @@ impl RegisterDependencyEdge {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x06 bytes follow.
-            0x06, // RegisterDependencyEdge record
+            0x06,   // RegisterDependencyEdge record
             0x08,
             // Will receive the SLEIGH offset of the register containing the pointer serving as
             // the address dependency edge for the memory access to follow
@@ -1083,10 +1187,7 @@ pub struct MemoryAllocated {
 impl MemoryAllocated {
     /// Constructs a record that indicates memory at the specified address was freed.
     pub fn new(address: u64, size: u32) -> Self {
-        Self {
-            address: address,
-            size: size,
-        }
+        Self { address, size }
     }
 
     pub fn address(&self) -> u64 {
@@ -1106,8 +1207,8 @@ impl MemoryAllocated {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0e bytes follow.
-            0x0e, // MemoryAllocated record
-            0x09, // Will receive the address of the allocated memory
+            0x0e,   // MemoryAllocated record
+            0x09,   // Will receive the address of the allocated memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             // Will receive the number of bytes allocated
             0x00, 0x00, 0x00, 0x00, // rlen
@@ -1157,8 +1258,8 @@ impl MemoryFreed {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0e bytes follow.
-            0x0e, // MemoryFreed record
-            0x0a, // Will receive the address of the freed memory
+            0x0e,   // MemoryFreed record
+            0x0a,   // Will receive the address of the freed memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             // Will receive the number of bytes freed
             0x00, 0x00, 0x00, 0x00, // rlen
@@ -1214,8 +1315,8 @@ impl MemoryReallocated {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x16 bytes follow.
-            0x16, // MemoryReallocated record
-            0x0b, // Will receive the new address of the reallocated memory
+            0x16,   // MemoryReallocated record
+            0x0b,   // Will receive the new address of the reallocated memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             // Will receive the old address of the reallocated memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
