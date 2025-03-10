@@ -54,9 +54,9 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
     let mut ignore_next = false;
 
     trace.for_each(|raw| {
-        log::debug!("{raw:?}");
+        tracing::debug!("{raw:?}");
         let record = try_break!(arch.parse_record(raw));
-        log::debug!("{record:?}");
+        tracing::debug!("{record:?}");
         if ignore_next && call_model.state == CallState::NotModeling {
             ignore_next = false;
             cont!();
@@ -81,12 +81,12 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
                                 if let Some(old_addr) = reg_native_map.insert(num, sleigh_addr) {
                                     let old_val = old_addr.offset();
                                     let sleigh_offset = sleigh_addr.offset();
-                                    log::warn!(
+                                    tracing::warn!(
                                         "Offset for '{regname}' was updated from {old_val} to {sleigh_offset}"
                                     );
                                 }
                             } else {
-                                log::warn!(
+                                tracing::warn!(
                                     "{}",
                                     RuntimeError::TranslateError((num, regname.to_string()))
                                         .to_string()
@@ -175,7 +175,7 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
                     let address = df.register_space().index(address.offset());
                     df.insert_write(address, native.contents())
                 } else {
-                    log::warn!(
+                    tracing::warn!(
                         "Ignoring write to unknown native register: {}",
                         &native.regnum()
                     );

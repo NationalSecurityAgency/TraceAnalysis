@@ -15,6 +15,7 @@ use dataflow::prelude::SpaceKind;
 use trace::index::spacetime_index::SpacetimeIndex;
 use trace::index::string_index::StringIndex;
 use trace::index::{Indexer, Operation};
+use tracing_subscriber::filter::EnvFilter;
 
 /// Counts the type of each record in the trace.
 #[derive(Parser, Debug)]
@@ -98,6 +99,10 @@ fn parse_ops(args: Args) -> Result<(Vec<Operation>, u64)> {
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_env("TA_LOG"))
+        .with_writer(std::io::stderr)
+        .init();
     let args = Args::parse();
 
     let str_index_file = open_index_file(args.str_index.as_str())?;

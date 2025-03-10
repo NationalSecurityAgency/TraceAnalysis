@@ -188,7 +188,9 @@ enum DeltaMessage {
 }
 
 fn write_deltas(chan: Receiver<DeltaMessage>, mut out: BufWriter<File>) {
-    use log::{trace, warn};
+    use tracing::warn;
+
+    let _span = tracing::trace_span!("write_deltas").entered();
 
     #[derive(Serialize)]
     struct DeltaRecord<'a> {
@@ -244,7 +246,11 @@ fn write_deltas(chan: Receiver<DeltaMessage>, mut out: BufWriter<File>) {
                             8 => delta.value.as_u64(),
                             /*16 => delta.value.as_u64(),*/
                             _ => {
-                                warn!("Unable to cast value of size {:?} to concrete value at tick {:?}", delta.size, tick);
+                                warn!(
+                                    tick = tick,
+                                    size = delta.size,
+                                    "unable to cast value to concrete value"
+                                );
                                 None
                             }
                         };
@@ -267,7 +273,7 @@ fn write_deltas(chan: Receiver<DeltaMessage>, mut out: BufWriter<File>) {
                 }
             }
             DeltaMessage::Done => {
-                trace!("Delta channel received Message::Done");
+                tracing::trace!("received done message");
                 break;
             }
         }
@@ -437,7 +443,8 @@ fn write_const_deps(
     mut value_out: BufWriter<File>,
     mut addr_out: BufWriter<File>,
 ) {
-    use log::warn;
+    use tracing::warn;
+    let _span = tracing::trace_span!("write_const_deps").entered();
 
     #[derive(Serialize)]
     struct ConstRecord<'a> {
@@ -497,7 +504,7 @@ fn write_const_deps(
                         8 => partial.as_u64(),
                         16 => partial.as_u64(),
                         _ => {
-                            warn!("Unable to cast value of size {size:?} to concrete value");
+                            warn!(size = size, "unable to cast value to concrete value");
                             None
                         }
                     };
@@ -544,7 +551,7 @@ fn write_const_deps(
                         8 => partial.as_u64(),
                         16 => partial.as_u64(),
                         _ => {
-                            warn!("Unable to cast value of size {size:?} to concrete value");
+                            warn!(size = size, "unable to cast value to concrete value");
                             None
                         }
                     };

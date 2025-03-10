@@ -8,7 +8,7 @@ use dataflow_core::space::SpaceKind;
 use dataflow_core::value::PartialValue;
 use dataflow_core::{Index, Tick};
 
-use log::trace;
+use tracing::trace;
 
 pub struct SpeculateCBranch {
     speculating: bool,
@@ -54,6 +54,8 @@ impl DataflowPlugin for SpeculateCBranch {
         op: Operation,
         output: &mut EmulatorOutput,
     ) {
+        let _span =
+            tracing::trace_span!("on_operation", index = store.instruction_index()).entered();
         if self.speculating {
             // Validate via write records: If a write to unique space,
             // emit unconditionally. Otherwise, if a register or memory write, verify that
@@ -62,7 +64,7 @@ impl DataflowPlugin for SpeculateCBranch {
                 if kind != SpaceKind::Register && kind != SpaceKind::Memory {
                     return;
                 }
-                trace!("[SpeculateCBranch] speculating addr or mem!");
+                trace!("speculating address or mem");
                 let mut num_writes = 0;
                 let mut ok = true;
                 for (address, value) in oplog.writes_in_range(&delta.as_range()) {
@@ -70,20 +72,20 @@ impl DataflowPlugin for SpeculateCBranch {
                     if let Some(v) = delta.value_at(address) {
                         if v != value {
                             trace!(
-                                "[SpeculateCBranch] {} value mismatch at {:?}: {:?} != {:?}",
-                                store.instruction_index(),
-                                address,
-                                v,
-                                value
+                                space = address.space().id(),
+                                offset = %Hex(address.offset()),
+                                delta_value = %Hex(v),
+                                record_value = %Hex(value),
+                                "value mismatch",
                             );
                             ok = false;
                             break;
                         }
                     } else {
                         trace!(
-                            "[SpeculateCBranch] {} written value unavailable at {:?}",
-                            store.instruction_index(),
-                            address
+                            space = address.space().id(),
+                            offset = %Hex(address.offset()),
+                            "written value unavailable",
                         );
                         ok = false;
                         break;
@@ -94,18 +96,14 @@ impl DataflowPlugin for SpeculateCBranch {
                 // same byte
                 if !ok || num_writes < delta.size {
                     trace!(
-                        "[SpeculateCBranch] {} wrong number of writes {} < {}",
-                        store.instruction_index(),
-                        num_writes,
-                        delta.size
+                        number_of_writes = num_writes,
+                        delta_size = delta.size,
+                        "wrong number of writes",
                     );
                     // If we could not corroborate this operation with a record,
                     output.delta = None;
                 } else {
-                    trace!(
-                        "[SpeculateCBranch] {} speculation success",
-                        store.instruction_index()
-                    );
+                    trace!("speculation success");
                 }
             }
         }
@@ -158,5 +156,19 @@ impl DataflowPlugin for SpeculateCBranch {
         _assembly: &str,
     ) {
         self.speculating = false;
+    }
+}
+
+struct Hex<T>(T);
+
+impl std::fmt::Display for Hex<u64> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:#018x}", self.0)
+    }
+}
+
+impl std::fmt::Display for Hex<u8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:#04x}", self.0)
     }
 }

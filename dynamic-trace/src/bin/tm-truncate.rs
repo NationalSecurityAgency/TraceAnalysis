@@ -6,6 +6,7 @@ use std::io::{self, Read, Write};
 use trace::reader::{cont, TraceReader};
 use trace::record::{parse_unknown, Record};
 use trace::RuntimeError;
+use tracing_subscriber::filter::EnvFilter;
 
 /// Splits a trace into multiple files based on thread/process IDs specified in meta-records.
 #[derive(Debug, Clone, clap::Parser)]
@@ -18,15 +19,15 @@ struct Args {
     #[arg(short, long, default_value_t = String::from("-"))]
     output: String,
 
-    /// Verbosity level for logging.
-    #[arg(short, action = clap::ArgAction::Count)]
-    verbose: u8,
-
     #[arg(long)]
     count: usize,
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_env("TA_LOG"))
+        .with_writer(std::io::stderr)
+        .init();
     let args = Args::parse();
 
     let input = open_input(args.input.as_str())?;

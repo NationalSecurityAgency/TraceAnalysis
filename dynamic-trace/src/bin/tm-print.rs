@@ -11,6 +11,7 @@ use trace::{
     record::{Meta, Record},
     RuntimeError,
 };
+use tracing_subscriber::filter::EnvFilter;
 
 /// Prints human readable version of the trace to stderr while continuing
 /// to pipe the trace to stdout (or an output file).
@@ -24,15 +25,14 @@ struct Args {
     /// Output file or '-' to use stdout.
     #[arg(short, long, default_value_t = String::from("-"))]
     output: String,
-
-    /// Verbosity level for stderr logging.
-    #[arg(short, action = clap::ArgAction::Count)]
-    verbose: u8,
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_env("TA_LOG"))
+        .with_writer(std::io::stderr)
+        .init();
     let args = Args::parse();
-    stderrlog::new().verbosity(args.verbose as usize).init()?;
 
     // Check that ghidra is installed before running:
     let _ = std::env::var("GHIDRA_INSTALL_DIR")
@@ -81,13 +81,13 @@ fn main() -> Result<()> {
             try_cont!(output.write(raw.bytes()));
 
             let record = try_cont!(arch.parse_record(raw));
-            log::debug!("{record:x?}");
+            tracing::debug!("{record:x?}");
             match record {
                 Record::Instruction(ins) => {
                     let (pc, insbytes) = (ins.pc(), ins.insbytes());
                     try_cont!(write!(stderr, "INS {} {:02X?} ", fmt_addr(pc), insbytes));
                     if insbytes.len() == 0 {
-                        log::warn!("empty instruction at {pc:#x?}");
+                        tracing::warn!("empty instruction at {pc:#x?}");
                         cont!();
                     }
 

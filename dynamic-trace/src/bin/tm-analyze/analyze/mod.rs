@@ -51,9 +51,9 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
     let mut tick: u64 = 0u64;
 
     trace.for_each(|raw| {
-        log::debug!("{raw:?}");
+        tracing::debug!("{raw:?}");
         let record = try_break!(arch.parse_record(raw));
-        log::debug!("{record:?}");
+        tracing::debug!("{record:?}");
         match record {
             Record::FileMeta(file_meta) => {
                 match file_meta {
@@ -74,12 +74,12 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
                                 if let Some(old_addr) = reg_native_map.insert(num, sleigh_addr) {
                                     let old_val = old_addr.offset();
                                     let sleigh_offset = sleigh_addr.offset();
-                                    log::warn!(
+                                    tracing::warn!(
                                         "Offset for '{regname}' was updated from {old_val} to {sleigh_offset}"
                                     );
                                 }
                             } else {
-                                log::warn!(
+                                tracing::warn!(
                                     "{}",
                                     RuntimeError::TranslateError((num, regname.to_string()))
                                         .to_string()
@@ -121,7 +121,7 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
                     let address = df.register_space().index(address.offset());
                     df.insert_write(address, native.contents())
                 } else {
-                    log::warn!(
+                    tracing::warn!(
                         "Ignoring write to unknown native register: {}",
                         &native.regnum()
                     );

@@ -7,6 +7,7 @@ use std::io::{self, Read, Write};
 
 use trace::reader::{cont, try_break, TraceReader};
 use trace::record::RecordKind;
+use tracing_subscriber::filter::EnvFilter;
 
 /// Counts the type of each record in the trace.
 #[derive(Parser, Debug)]
@@ -22,6 +23,11 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_env("TA_LOG"))
+        .with_writer(std::io::stderr)
+        .init();
+
     let args = Args::parse();
 
     let input = open_input(args.input.as_str())?;

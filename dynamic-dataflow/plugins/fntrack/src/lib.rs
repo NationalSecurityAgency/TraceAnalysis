@@ -527,6 +527,7 @@ impl DataflowPlugin for FnTracker {
         insbytes: &[u8],
         assembly: &str,
     ) {
+        let _span = tracing::trace_span!("on_instruction", index = store.instruction_index());
         let idx = store.instruction_index();
         if let Some(cur_func) = self.currentfunctionrun {
             if let Some(fnrun) = self.functionruns.get_mut(&cur_func) {
@@ -542,7 +543,7 @@ impl DataflowPlugin for FnTracker {
                     // determination
 
                     if is_branch(&self.arch, assembly) || is_nop(&self.arch, assembly) {
-                        log::debug!(" Branching!");
+                        tracing::debug!("branching");
                         return;
                     }
 
@@ -663,7 +664,7 @@ impl DataflowPlugin for FnTracker {
         // call/ret/syscall/sysret) and update accordingly:
 
         if is_call(&self.arch, assembly) {
-            log::debug!(" Call instruction!");
+            tracing::debug!("call instruction");
             self.currentdepth += 1;
             // Get stack info from datastore
             let mut stack_base: Option<Address> = None;
@@ -716,14 +717,14 @@ impl DataflowPlugin for FnTracker {
             self.currentfunctionrun = Some(idx);
             self.callerfunctionrun = caller_idx;
         } else if is_return(&self.arch, assembly) {
-            log::debug!(" Return instruction!");
+            tracing::debug!("return instruction");
             self.currentdepth -= 1;
             // Populate
             if let Some(cur_func) = self.currentfunctionrun {
                 if let Some(ref mut fnrun) = self.functionruns.get_mut(&cur_func) {
                     fnrun.state = FunctionRunState::Done;
                     fnrun.end = Some(idx);
-                    log::debug!("fntrack: ret_reg = {:?}", self.ret_reg);
+                    tracing::debug!(ret_reg = %Hex(self.ret_reg.offset()));
                     if let Some(ret_idx) = store.last_modified(&self.ret_reg) {
                         fnrun.ret = Some(*ret_idx);
                         fnrun.ret_val = match store.delta(*ret_idx) {
@@ -845,5 +846,13 @@ impl DataflowPlugin for FnTracker {
         for thread in self.threads.drain(..) {
             thread.join().unwrap();
         }
+    }
+}
+
+struct Hex<T>(T);
+
+impl std::fmt::Display for Hex<u64> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:#018x}", self.0)
     }
 }

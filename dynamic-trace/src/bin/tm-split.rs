@@ -7,6 +7,7 @@ use std::io::{self, BufWriter, Read, Write};
 use trace::reader::{cont, try_break, try_cont, TraceReader};
 use trace::record::{parse_unknown, Meta, Record, RecordKind};
 use trace::{RawRecord, RuntimeError};
+use tracing_subscriber::filter::EnvFilter;
 
 /// Splits a trace into multiple files based on thread/process IDs specified in meta-records.
 #[derive(Debug, Clone, clap::Parser)]
@@ -14,13 +15,13 @@ struct Args {
     /// Input file or '-' to use stdin.
     #[arg(short, long, default_value_t = String::from("-"))]
     input: String,
-
-    /// Verbosity level for logging.
-    #[arg(short, action = clap::ArgAction::Count)]
-    verbose: u8,
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_env("TA_LOG"))
+        .with_writer(std::io::stderr)
+        .init();
     let args = Args::parse();
 
     let input = open_input(args.input.as_str())?;
@@ -75,7 +76,7 @@ fn main() -> Result<()> {
                                 cont!();
                             }
                             Meta::Unknown(unk) => {
-                                log::debug!("Unknown Meta: {unk:?}");
+                                tracing::debug!("Unknown Meta: {unk:?}");
                                 let _ = try_break! {
                                     write_or_create_file(raw, &mut out_files, cur_pid, cur_tid, &trace_header)
                                 };

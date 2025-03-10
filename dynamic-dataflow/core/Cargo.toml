@@ -16,9 +16,7 @@ rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-
-# Soon to be replaced with tracing
-log = "0.4"
+tracing.workspace = true
 
 #pcode = { path = "../sleigh/pcode", optional = true }
 #sleigh-parse = { path = "../sleigh/sleigh-parse", optional = true }

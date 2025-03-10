@@ -98,6 +98,7 @@ impl Datastore {
         D: IntoIterator<Item = DeltaDep>,
     {
         let delta_idx = self.deltas.len();
+        let _span = tracing::trace_span!("insert_delta", index = delta_idx).entered();
 
         if Delta::is_dataflow(&delta) {
             match delta.deref().space.kind() {
@@ -119,9 +120,16 @@ impl Datastore {
 
         deps.into_iter().for_each(|dep| match dep {
             DeltaDep::Address(dep) => {
+                tracing::trace!(from = delta_idx, to = dep.index, "address dep");
                 self.addr_deps.push(Edge::Certain(delta_idx, dep.index));
             }
             DeltaDep::Value(dep) => {
+                tracing::trace! {
+                    from = delta_idx,
+                    to = dep.index,
+                    position = dep.pos,
+                    "value dep"
+                };
                 self.value_deps
                     .push((Edge::Certain(delta_idx, dep.index), dep.pos));
             }
@@ -201,6 +209,13 @@ impl Datastore {
     }
 
     pub fn forget_range(&mut self, range: &AddressRange) {
+        tracing::trace! {
+            space = range.space().id(),
+            offset = %crate::Hex(range.offset()),
+            size = range.size(),
+            "terminating dataflow in range"
+        };
+
         match range.space().kind() {
             SpaceKind::Register => {
                 for address in range.iter() {
