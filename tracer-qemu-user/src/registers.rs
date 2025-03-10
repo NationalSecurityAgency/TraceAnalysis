@@ -1,5 +1,5 @@
-use std::sync::{Arc, OnceLock};
 use std::cell::RefCell;
+use std::sync::{Arc, OnceLock};
 
 use trace::record::{Record, RegisterNameMap};
 
@@ -43,7 +43,7 @@ impl Register {
         if current == self.prev.as_slice() {
             return None;
         }
-        
+
         self.prev.clear();
         self.prev.extend_from_slice(current);
 
@@ -52,7 +52,7 @@ impl Register {
             value = %log::Hex(self.prev.as_slice()),
             "writing register"
         };
-        
+
         Some(self.prev.as_slice())
     }
 
@@ -72,10 +72,8 @@ impl From<&RegisterDesc> for Register {
 }
 
 pub fn initialize() {
-    let registers = unsafe {
-        qemu_plugin_get_registers()
-    };
-    
+    let registers = unsafe { qemu_plugin_get_registers() };
+
     let Some(registers) = registers.as_slice() else {
         tracing::error!("register list is null");
         panic!()
@@ -94,26 +92,22 @@ pub fn initialize() {
             })
             .collect();
 
-        let record = RegisterNameMap::new(registers
-            .iter()
-            .enumerate()
-            .map(|(i, desc)| {
-                (i as u16, desc.name.as_bytes())
-            })
+        let record = RegisterNameMap::new(
+            registers
+                .iter()
+                .enumerate()
+                .map(|(i, desc)| (i as u16, desc.name.as_bytes())),
         );
 
-        tracefile::with(move |trace| {
-            trace.write(Record::from(record))
-        });
+        tracefile::with(move |trace| trace.write(Record::from(record)));
 
         registers
     });
 }
 
-
 pub fn for_each<F>(f: F)
 where
-    F: FnMut(&mut Register)
+    F: FnMut(&mut Register),
 {
     REGISTER_VALUES.with_borrow_mut(|registers| {
         if registers.len() == 0 {

@@ -3,8 +3,8 @@ use panda::prelude::*;
 use panda::CPUArchPtr;
 
 use std::cell::{OnceCell, RefCell};
-use std::sync::{OnceLock, Mutex};
 use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 pub use trace::record::emit_le32 as varfmt;
 
@@ -37,7 +37,6 @@ pub fn get_instruction(cpu: &mut CPUState, pc: u64, insbytes: &mut Vec<u8>) {
             })
         });
 
-
         decoder.borrow_mut().instruction_length(pc, buffer)
     });
     insbytes.extend_from_slice(&mut buffer[..length]);
@@ -61,22 +60,16 @@ pub fn current_tid(cpu: &mut CPUState) -> u32 {
 impl super::RegsExt for super::Regs {
     fn update(&mut self, cpu: &CPUState) {
         self.inner_mut().clear();
-        self.inner_mut().extend(unsafe {
-            (*panda::cpu_arch_state!(cpu)).regs
-        }.into_iter().map(|r: u32| r.to_le_bytes()).flatten());
+        self.inner_mut().extend(
+            unsafe { (*panda::cpu_arch_state!(cpu)).regs }
+                .into_iter()
+                .map(|r: u32| r.to_le_bytes())
+                .flatten(),
+        );
     }
-    
+
     fn register_names() -> &'static [&'static str] {
-        &[
-            "EAX",
-            "ECX",
-            "EDX",
-            "EBX",
-            "ESP",
-            "EBP",
-            "ESI",
-            "EDI", 
-        ]
+        &["EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI"]
     }
 
     fn register_sizes() -> &'static [usize] {
@@ -107,5 +100,5 @@ impl Decoder {
 static THREADS: OnceLock<Mutex<Vec<(u32, u32)>>> = OnceLock::new();
 
 thread_local! {
-    static DECODER: OnceCell<RefCell<Decoder>> = OnceCell::new(); 
+    static DECODER: OnceCell<RefCell<Decoder>> = OnceCell::new();
 }

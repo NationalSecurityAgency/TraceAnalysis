@@ -1,6 +1,13 @@
-use std::{fs::File, io::{BufWriter, Write}, sync::{Mutex, OnceLock}};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    sync::{Mutex, OnceLock},
+};
 
-use trace::{record::{emit_be32, emit_be64, emit_le32, emit_le64, Record, ThreadId}, Arch};
+use trace::{
+    record::{emit_be32, emit_be64, emit_le32, emit_le64, Record, ThreadId},
+    Arch,
+};
 
 static TRACE_FILE: OnceLock<Mutex<TraceFile>> = OnceLock::new();
 
@@ -56,7 +63,9 @@ pub(crate) fn initialize(file: File, arch: Arch) {
         Record::from(ThreadId::new(last_tid as _)).emit(&mut record, varfmt);
 
         let mut writer = BufWriter::new(file);
-        writer.write(record.as_slice()).expect("failed to write to trace file");
+        writer
+            .write(record.as_slice())
+            .expect("failed to write to trace file");
         record.clear();
 
         Mutex::new(TraceFile {
@@ -68,13 +77,12 @@ pub(crate) fn initialize(file: File, arch: Arch) {
     });
 }
 
-
 pub(crate) fn with<F: FnOnce(&mut TraceFile)>(f: F) {
     let Some(trace) = TRACE_FILE.get() else {
         tracing::error!("attempted to acquire trace file before initialization");
-        panic!()        
+        panic!()
     };
-    
+
     let Ok(mut trace) = trace.lock() else {
         tracing::error!("trace file lock is poisoned");
         panic!()

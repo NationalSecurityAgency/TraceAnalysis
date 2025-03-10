@@ -9,9 +9,9 @@ pub fn on_plugin_install(id: qemu::qemu_plugin_id_t, info: &qemu::qemu_info_t, a
 
     let Some(arch) = info.target_name() else {
         tracing::error!("info is missing architecture information");
-        panic!()  
+        panic!()
     };
-        
+
     let arch = match arch {
         "x86_64" => trace::Arch::X86_64,
         "i386" => trace::Arch::X86,
@@ -45,7 +45,7 @@ pub fn on_plugin_install(id: qemu::qemu_plugin_id_t, info: &qemu::qemu_info_t, a
         match key {
             "output" => {
                 filename = Some(value);
-            },
+            }
             _ => {
                 tracing::warn!(arg = key, "skipping unknown argument");
             }
@@ -106,7 +106,7 @@ impl<'scope> Iterator for Args<'scope> {
         while self.curr < self.argc {
             let i = self.curr;
             self.curr += 1;
-            
+
             let argv_n = unsafe { self.argv.add(i).read() };
             if argv_n.is_null() {
                 tracing::warn!(n = i, "skipping null argument");
@@ -175,26 +175,26 @@ impl OnTbTrans for Plugin {
             "on_tb_trans",
             id = id,
             address = %log::Hex(unsafe { qemu::qemu_plugin_tb_vaddr(tb)})
-        }.entered();
-        
+        }
+        .entered();
+
         let mut i = 0;
         translation_block::insert_and(tb, move |instruction| {
-            let insn = unsafe {
-                qemu::qemu_plugin_tb_get_insn(tb, i)
-            };
+            let insn = unsafe { qemu::qemu_plugin_tb_get_insn(tb, i) };
 
             tracing::trace! {
                 address = %log::Hex(instruction.address()),
-                "registering instruction callbacks"  
+                "registering instruction callbacks"
             };
-            
+
             register_on_insn_exec(instruction.clone(), insn, qemu::QEMU_PLUGIN_CB_R_REGS);
             register_on_mem(
                 instruction,
                 insn,
                 qemu::QEMU_PLUGIN_CB_NO_REGS,
-                qemu::QEMU_PLUGIN_MEM_RW);
-            
+                qemu::QEMU_PLUGIN_MEM_RW,
+            );
+
             i += 1;
         });
     }
@@ -209,10 +209,11 @@ impl OnInsnExec for translation_block::Instruction {
         let _span = tracing::trace_span! {
             "on_insn_exec",
             vcpu = vcpu_index,
-        }.entered();
-        
+        }
+        .entered();
+
         let thread_id = unsafe { libc::gettid() };
-        
+
         tracefile::with(move |trace| {
             if trace.last_tid() != thread_id {
                 trace.write(ThreadId::new(thread_id as _).into());
@@ -223,11 +224,11 @@ impl OnInsnExec for translation_block::Instruction {
                 registers::for_each(|register| {
                     let regnum = i;
                     i += 1;
-                
+
                     let Some(value) = register.update() else {
                         return;
                     };
-                    
+
                     trace.write(RegWriteNative::new(regnum, value).into());
                 });
                 let pc = prev_insn.address();
@@ -258,15 +259,12 @@ impl OnMem for translation_block::Instruction {
             "on_mem",
             vcpu = vcpu_index,
             pc = %log::Hex(self.address()),
-        }.entered();
-        
-        let size_shift = unsafe {
-            qemu::qemu_plugin_mem_size_shift(info)
-        };
+        }
+        .entered();
+
+        let size_shift = unsafe { qemu::qemu_plugin_mem_size_shift(info) };
         let size = (1 << size_shift) as usize;
-        let is_store = unsafe {
-            qemu::qemu_plugin_mem_is_store(info)
-        };
+        let is_store = unsafe { qemu::qemu_plugin_mem_is_store(info) };
 
         //let hwaddr = unsafe {
         //    qemu::qemu_plugin_get_hwaddr(info, vaddr)
@@ -274,11 +272,9 @@ impl OnMem for translation_block::Instruction {
         //let ptr = unsafe {
         //    qemu::qemu_plugin_hwaddr_phys_addr(hwaddr) as *const u8
         //};
-        
+
         let ptr = vaddr as *const u8;
-        let slice = unsafe {
-            std::slice::from_raw_parts(ptr, size)
-        };
+        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
 
         tracing::trace! {
             address = %log::Hex(vaddr),
@@ -286,7 +282,7 @@ impl OnMem for translation_block::Instruction {
             access = if is_store { "write" } else { "read" },
             value = %log::Hex(slice),
         };
-        
+
         let thread_id = unsafe { libc::gettid() };
         tracefile::with(move |trace| {
             if trace.last_tid() != thread_id {
@@ -314,34 +310,25 @@ pub fn register_on_exit<T: OnExit>(t: T, id: qemu::qemu_plugin_id_t) {
     }
 }
 
-pub fn register_on_tb_trans<T: OnTbTrans>(id: qemu::qemu_plugin_id_t)
-{
+pub fn register_on_tb_trans<T: OnTbTrans>(id: qemu::qemu_plugin_id_t) {
     unsafe {
         qemu::qemu_plugin_register_vcpu_tb_trans_cb(id, qemu::vcpu_tb_trans_wrapper::<T>);
     }
 }
 
-pub fn register_on_insn_exec<T: OnInsnExec>(
-    t: T,
-    insn: *mut qemu::qemu_plugin_insn,
-    flags: i32)
-{
+pub fn register_on_insn_exec<T: OnInsnExec>(t: T, insn: *mut qemu::qemu_plugin_insn, flags: i32) {
     let userdata: *mut T = Box::leak(Box::new(t)) as _;
     unsafe {
         qemu::qemu_plugin_register_vcpu_insn_exec_cb(
             insn,
             qemu::vcpu_insn_exec_wrapper::<T>,
             flags,
-            userdata as _);
+            userdata as _,
+        );
     }
 }
 
-pub fn register_on_mem<T: OnMem>(
-    t: T,
-    insn: *mut qemu::qemu_plugin_insn,
-    flags: i32,
-    rw: i32)
-{
+pub fn register_on_mem<T: OnMem>(t: T, insn: *mut qemu::qemu_plugin_insn, flags: i32, rw: i32) {
     let userdata: *mut T = Box::leak(Box::new(t)) as _;
     unsafe {
         qemu::qemu_plugin_register_vcpu_mem_cb(
@@ -349,7 +336,8 @@ pub fn register_on_mem<T: OnMem>(
             qemu::vcpu_mem_wrapper::<T>,
             flags,
             rw,
-            userdata as _);
+            userdata as _,
+        );
     }
 }
 
@@ -357,9 +345,9 @@ thread_local! {
     static LAST_INSTRUCTION: RefCell<Option<translation_block::Instruction>> = RefCell::new(None);
 }
 
-fn replace_last_instruction(insn: Option<translation_block::Instruction>)
-    -> Option<translation_block::Instruction>
-{
+fn replace_last_instruction(
+    insn: Option<translation_block::Instruction>,
+) -> Option<translation_block::Instruction> {
     LAST_INSTRUCTION.with_borrow_mut(|last_insn| {
         if let Some(insn) = insn {
             last_insn.replace(insn)

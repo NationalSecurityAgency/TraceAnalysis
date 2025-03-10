@@ -1,5 +1,5 @@
 #[repr(C)]
-pub struct GArray<T=i8> {
+pub struct GArray<T = i8> {
     data: *mut T,
     len: u32,
 }
@@ -10,9 +10,7 @@ impl<T> GArray<T> {
             return None;
         }
 
-        Some(unsafe {
-            std::slice::from_raw_parts(self.data, self.len as usize)
-        })
+        Some(unsafe { std::slice::from_raw_parts(self.data, self.len as usize) })
     }
 }
 
@@ -23,12 +21,9 @@ pub struct Owned<T: SpecializedDrop>(T);
 
 impl<T> Owned<*mut GArray<T>> {
     pub fn as_slice(&self) -> Option<&[T]> {
-        unsafe {
-            self.0.as_ref().and_then(GArray::<T>::as_slice)
-        }
+        unsafe { self.0.as_ref().and_then(GArray::<T>::as_slice) }
     }
 }
-
 
 impl<T: SpecializedDrop> std::ops::Deref for Owned<T> {
     type Target = T;

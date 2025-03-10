@@ -659,7 +659,9 @@ impl crate::lifter::Lift for Analysis {
         let tindex = self
             .store
             .lookup_tcache_or_else(pc, insbytes, |disasm, ops| {
-                self.lifter.lift_instruction(pc, insbytes, disasm, ops).map(|_| ())
+                self.lifter
+                    .lift_instruction(pc, insbytes, disasm, ops)
+                    .map(|_| ())
             })?;
 
         assembly.push_str(self.store.disassembly_for(tindex).unwrap());

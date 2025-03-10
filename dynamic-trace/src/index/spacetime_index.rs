@@ -3,7 +3,7 @@
 # The Problem
 During the execution of the program, memory accesses of all sorts occur. This information - the
 accesses - is all we have; if we want to know what was in memory at a specific location at a
-specific time, we need to find the most recent access(es) there and retrieve it/them. 
+specific time, we need to find the most recent access(es) there and retrieve it/them.
 
 ## Constraints
 This is a computation that occurs with some degree of frequency. As traces can be large (billions
@@ -13,7 +13,7 @@ better space complexity.
 ## Framing the Problem
 With some amount of post-processing, we can compute each time memory is changed and how long it
 remains before it is changed again. For example, we may find that "abcd" was written at address
-0x1234 at tick 100 and remained "abcd" until tick 300, at which point it was changed. 
+0x1234 at tick 100 and remained "abcd" until tick 300, at which point it was changed.
 
 We may regard a location in memory at a specific tick as a location in "space-time". It follows,
 then, that each change (as described above), can be regarded as a rectangle in space-time. In the
@@ -24,16 +24,16 @@ space-time from (`<start address>`, `<time>`) to (`<end address>`, `<time>`).
 
 ## Solution
 The canonical solution is to use an "r-tree" data structure. However, r-trees can be challenging
-to efficiently build, and our queries have a useful property that allows a modified segment tree 
+to efficiently build, and our queries have a useful property that allows a modified segment tree
 to solve the problem. Since they are flat along the time axis, we can approach the problem by
 finding `SpacetimeBlock`s that overlap the line `time = <query_time>`. Each node in the segment
 tree will contain some number of `SpacetimeBlock`s, some of which will overlap our requested
 address range, and some of which will not. Because these blocks are non-overlapping, a sorted
 vector is capable of storing them such that we may retrieve an interval in `O(log k + s)` time,
-where `k` is the number of blocks stored at the node, and `s` is the number of blocks in our 
+where `k` is the number of blocks stored at the node, and `s` is the number of blocks in our
 desired interval (basically serving as a faster and easier to implement interval tree).
 
-We store these blocks sorted by address so that, in `O(log k + s)` time, we can retrieve the 
+We store these blocks sorted by address so that, in `O(log k + s)` time, we can retrieve the
 relevant blocks, where `k` is the total number of blocks stored at the node.
 */
 
@@ -44,25 +44,25 @@ use std::io::Result;
 use std::io::Write;
 use std::rc::Rc;
 
+use super::segment_tree::{RSegmentTree, SegmentTreeEntry, WSegmentTree};
 use dataflow::prelude::SpaceKind;
-use super::segment_tree::{SegmentTreeEntry, WSegmentTree, RSegmentTree};
 
-use super::Serializable;
 use super::Index;
+use super::Serializable;
 use super::SpacetimeBlock;
 
 struct SpacetimeWTree {
     space: SpaceKind,
-    trunk: WSegmentTree<SpacetimeBlock>
+    trunk: WSegmentTree<SpacetimeBlock>,
 }
 pub struct SpacetimeRTree {
     space: SpaceKind,
-    trunk: RSegmentTree<SpacetimeBlock>
+    trunk: RSegmentTree<SpacetimeBlock>,
 }
 
 enum SpacetimeTree {
     Write(SpacetimeWTree),
-    Read(SpacetimeRTree)
+    Read(SpacetimeRTree),
 }
 
 pub struct SpacetimeIndex<W: Write> {
@@ -75,7 +75,7 @@ impl SpacetimeWTree {
     fn new(num_ticks: u64, space: SpaceKind) -> Self {
         Self {
             space: space,
-            trunk: WSegmentTree::new(0, num_ticks)
+            trunk: WSegmentTree::new(0, num_ticks),
         }
     }
     fn insert(&mut self, data: SpacetimeBlock) {
@@ -90,17 +90,12 @@ impl SpacetimeWTree {
     fn finalize(self) -> SpacetimeRTree {
         SpacetimeRTree {
             space: self.space,
-            trunk: self.trunk.finalize()
+            trunk: self.trunk.finalize(),
         }
     }
 }
 impl SpacetimeRTree {
-    pub fn find(
-        &mut self,
-        time: u64,
-        addr_start: u64,
-        addr_end: u64) -> Vec<Rc<SpacetimeBlock>> 
-    {
+    pub fn find(&mut self, time: u64, addr_start: u64, addr_end: u64) -> Vec<Rc<SpacetimeBlock>> {
         let mut results = Vec::new();
         self.trunk.search(time, addr_start, addr_end, &mut results);
         results
@@ -119,8 +114,8 @@ fn begin_rtree_serialization<T>(tree: &RSegmentTree<T>, bytes: &mut Vec<u8>) {
     tree.elements.len().serialize_to(bytes);
 }
 fn begin_rtree_deserialization<T>(
-    bytes: &[u8], 
-    start: &mut usize
+    bytes: &[u8],
+    start: &mut usize,
 ) -> Option<(Box<RSegmentTree<T>>, usize)> {
     let is_present = u8::deserialize(bytes, start);
     if is_present == 0 {
@@ -134,8 +129,9 @@ fn begin_rtree_deserialization<T>(
                 left: None,
                 right: None,
                 elements: Vec::new(),
-            }), 
-            usize::deserialize(bytes, start)))
+            }),
+            usize::deserialize(bytes, start),
+        ))
     }
 }
 
@@ -156,13 +152,13 @@ impl Serializable for SpacetimeRTree {
             block_ids.insert(addr, idx);
             block.serialize_to(bytes);
         }
-	
+
         while let Some(front) = branch_stack.pop_front() {
             if let Some(front) = front {
                 begin_rtree_serialization(front, bytes);
 
                 for elem in &front.elements {
-                    let block_addr : *const SpacetimeBlock = elem.data.as_ref();
+                    let block_addr: *const SpacetimeBlock = elem.data.as_ref();
                     let block_id = block_ids.get(&block_addr).unwrap();
                     block_id.serialize_to(bytes);
                 }
@@ -177,26 +173,34 @@ impl Serializable for SpacetimeRTree {
     fn deserialize(bytes: &[u8], start: &mut usize) -> Self {
         let space = SpaceKind::deserialize(bytes, start);
         let num_entries = usize::deserialize(bytes, start);
-        let block_map = (0 .. num_entries)
+        let block_map = (0..num_entries)
             .map(|n| {
                 let block = SpacetimeBlock::deserialize(bytes, start);
-                (n, SegmentTreeEntry { sort_key: block.address, data: Rc::new(block) })
+                (
+                    n,
+                    SegmentTreeEntry {
+                        sort_key: block.address,
+                        data: Rc::new(block),
+                    },
+                )
             })
             .collect::<BTreeMap<_, _>>();
 
         let mut branch_stack = VecDeque::new();
         let mut root_branch = Some(Box::new(RSegmentTree::new_empty()));
         branch_stack.push_front(&mut root_branch);
-        
+
         while let Some(branch) = branch_stack.pop_front() {
             if let Some((new_branch, num_elems)) = begin_rtree_deserialization(bytes, start) {
                 *branch = Some(new_branch);
 
                 let branch_ref = branch.as_mut().unwrap();
 
-                for _ in 0 .. num_elems {
+                for _ in 0..num_elems {
                     let block_id = usize::deserialize(bytes, start);
-                    branch_ref.elements.push(block_map.get(&block_id).unwrap().clone())
+                    branch_ref
+                        .elements
+                        .push(block_map.get(&block_id).unwrap().clone())
                 }
 
                 branch_stack.push_front(&mut branch_ref.right);
@@ -204,7 +208,10 @@ impl Serializable for SpacetimeRTree {
             }
         }
 
-        Self { space, trunk: *root_branch.unwrap() }
+        Self {
+            space,
+            trunk: *root_branch.unwrap(),
+        }
     }
 }
 
@@ -223,27 +230,30 @@ impl<W: Write> Index for SpacetimeIndex<W> {
             tree
         } else {
             self.trees.insert(
-                block.space, 
-                SpacetimeTree::Write(SpacetimeWTree::new(self.max_ticks, block.space)));
+                block.space,
+                SpacetimeTree::Write(SpacetimeWTree::new(self.max_ticks, block.space)),
+            );
             self.trees.get_mut(&block.space).unwrap()
         };
         match tree {
             SpacetimeTree::Write(tree) => tree.insert(block),
-            _ => panic!("Cannot record into finalized Index")
+            _ => panic!("Cannot record into finalized Index"),
         }
     }
     fn finalize(&mut self) {
-        self.trees = self.trees
+        self.trees = self
+            .trees
             .drain()
-            .map(|(key, value)| 
+            .map(|(key, value)| {
                 (
-                    key, 
+                    key,
                     match value {
                         SpacetimeTree::Write(tree) => SpacetimeTree::Read(tree.finalize()),
                         other => other,
-                    }
+                    },
                 )
-        ).collect();
+            })
+            .collect();
     }
     fn save(&mut self) -> Result<()> {
         for tree in self.trees.values() {
@@ -252,7 +262,7 @@ impl<W: Write> Index for SpacetimeIndex<W> {
                     let mut data = Vec::new();
                     tree.serialize_to(&mut data);
                     self.file.write_all(&data)?
-                },
+                }
                 _ => panic!("Cannot save non-finalized index!"),
             }
         }

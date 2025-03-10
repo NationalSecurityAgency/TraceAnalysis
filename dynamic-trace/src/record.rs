@@ -894,8 +894,8 @@ impl CallModeledOpsEnd {
         let bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x02 bytes follow.
-            0x02, // CallModeledOpsEnd record
-            0x04, // rlen
+            0x02,   // CallModeledOpsEnd record
+            0x04,   // rlen
             0x03,
         ];
         buffer.extend_from_slice(&bytes)
@@ -938,8 +938,8 @@ impl CallEnd {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0a bytes follow.
-            0x0a, // CallEnd record
-            0x05, // Will receive associated call instruction's address
+            0x0a,   // CallEnd record
+            0x05,   // Will receive associated call instruction's address
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // rlen
             0x0b,
         ];
@@ -971,8 +971,8 @@ impl OperandUncertain {
         let bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x02 bytes follow.
-            0x02, // OperandUncertain record
-            0x06, // rlen
+            0x02,   // OperandUncertain record
+            0x06,   // rlen
             0x03,
         ];
         buffer.extend_from_slice(&bytes)
@@ -1010,7 +1010,7 @@ impl AddressDependencyEdge {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0a bytes follow.
-            0x0a, // AddressDependencyEdge record
+            0x0a,   // AddressDependencyEdge record
             0x07,
             // Will receive the address of the pointer to serve as the address dependency edge for
             // the memory access to follow
@@ -1056,7 +1056,7 @@ impl RegisterDependencyEdge {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x06 bytes follow.
-            0x06, // RegisterDependencyEdge record
+            0x06,   // RegisterDependencyEdge record
             0x08,
             // Will receive the SLEIGH offset of the register containing the pointer serving as
             // the address dependency edge for the memory access to follow
@@ -1106,8 +1106,8 @@ impl MemoryAllocated {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0e bytes follow.
-            0x0e, // MemoryAllocated record
-            0x09, // Will receive the address of the allocated memory
+            0x0e,   // MemoryAllocated record
+            0x09,   // Will receive the address of the allocated memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             // Will receive the number of bytes allocated
             0x00, 0x00, 0x00, 0x00, // rlen
@@ -1157,8 +1157,8 @@ impl MemoryFreed {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x0e bytes follow.
-            0x0e, // MemoryFreed record
-            0x0a, // Will receive the address of the freed memory
+            0x0e,   // MemoryFreed record
+            0x0a,   // Will receive the address of the freed memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             // Will receive the number of bytes freed
             0x00, 0x00, 0x00, 0x00, // rlen
@@ -1214,8 +1214,8 @@ impl MemoryReallocated {
         let mut bytes = [
             // (0b001100, 0b01): (Meta, length is 1 byte long)
             0x31u8, // 0x16 bytes follow.
-            0x16, // MemoryReallocated record
-            0x0b, // Will receive the new address of the reallocated memory
+            0x16,   // MemoryReallocated record
+            0x0b,   // Will receive the new address of the reallocated memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             // Will receive the old address of the reallocated memory
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

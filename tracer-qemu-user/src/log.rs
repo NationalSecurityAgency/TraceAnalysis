@@ -23,8 +23,6 @@ pub fn initialize_logging() {
         .init();
 }
 
-
-
 pub fn debug_writer() -> impl std::io::Write {
     struct QemuDebugWriter;
 
@@ -39,11 +37,12 @@ pub fn debug_writer() -> impl std::io::Write {
                     debug_buffer.push(0);
                     // SAFETY: Trailing null bytes has just been added to the buffer
                     unsafe {
-                        let s = std::ffi::CStr::from_bytes_with_nul_unchecked(debug_buffer.as_slice());
+                        let s =
+                            std::ffi::CStr::from_bytes_with_nul_unchecked(debug_buffer.as_slice());
                         crate::qemu::qemu_plugin_outs(s.as_ptr());
                     }
                     debug_buffer.clear();
-                })
+                }),
             }
             Ok(buf.len())
         }
@@ -56,10 +55,6 @@ pub fn debug_writer() -> impl std::io::Write {
     QemuDebugWriter
 }
 
-
 thread_local! {
     static DEBUG_BUFFER: RefCell<Vec<u8>> = RefCell::new(Vec::new());
 }
-
-
-

@@ -21,27 +21,18 @@ pub fn current_tid(_cpu: &mut CPUState) -> u32 {
 impl super::RegsExt for super::Regs {
     fn update(&mut self, cpu: &CPUState) {
         self.inner_mut().clear();
-        self.inner_mut().extend(unsafe {
-            (*panda::cpu_arch_state!(cpu)).xregs
-        }.into_iter().take(15).map(|r: u64| r.to_le_bytes()).flatten());
+        self.inner_mut().extend(
+            unsafe { (*panda::cpu_arch_state!(cpu)).xregs }
+                .into_iter()
+                .take(15)
+                .map(|r: u64| r.to_le_bytes())
+                .flatten(),
+        );
     }
 
     fn register_names() -> &'static [&'static str] {
         &[
-            "X0",
-            "X1",
-            "X2",
-            "X3",
-            "X4",
-            "X5",
-            "X6",
-            "X7",
-            "X8",
-            "X9",
-            "X10",
-            "X11",
-            "X12",
-            "LR",
+            "X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10", "X11", "X12", "LR",
             "SP",
         ]
     }

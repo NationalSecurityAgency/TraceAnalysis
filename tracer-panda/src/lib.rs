@@ -1,20 +1,13 @@
 use panda::prelude::*;
 
 use trace::record::{
-    Record,
-    MemWrite,
-    MemRead,
-    Pc,
-    Instruction,
-    RegisterNameMap,
-    RegWriteNative,
-    ProcessId,
+    Instruction, MemRead, MemWrite, Pc, ProcessId, Record, RegWriteNative, RegisterNameMap,
     ThreadId,
 };
 
-use std::sync::{OnceLock, RwLock};
-use std::io::{BufWriter, Write};
 use std::fs::{self, File};
+use std::io::{BufWriter, Write};
+use std::sync::{OnceLock, RwLock};
 
 pub mod arch;
 use arch::RegsExt as _;
@@ -51,18 +44,21 @@ impl Trace {
         let Ok(file) = fs::File::options()
             .write(true)
             .create(true)
-            .open(args.out.as_str()) else {
-                return false;
-            };
+            .open(args.out.as_str())
+        else {
+            return false;
+        };
 
         let mut buffer = Vec::new();
         Record::Magic.emit(&mut buffer, arch::varfmt);
         Record::from(arch::ARCH).emit(&mut buffer, arch::varfmt);
-        Record::from(RegisterNameMap::new(arch::Regs::register_names()
+        Record::from(RegisterNameMap::new(
+            arch::Regs::register_names()
                 .into_iter()
                 .enumerate()
-                .map(|(i, name)| (i as u16, name.as_bytes()))
-        )).emit(&mut buffer, arch::varfmt);
+                .map(|(i, name)| (i as u16, name.as_bytes())),
+        ))
+        .emit(&mut buffer, arch::varfmt);
 
         let _ = TRACE.set(RwLock::new(Self {
             writer: BufWriter::new(file),
@@ -115,10 +111,8 @@ impl Trace {
         Self::with(move |trace| {
             trace.next_regs.update(cpu);
             for (regnum, regval) in trace.last_regs.diff(&trace.next_regs) {
-                Record::from(RegWriteNative::new(regnum, regval)).emit(
-                    &mut trace.buffer,
-                    arch::varfmt
-                    );
+                Record::from(RegWriteNative::new(regnum, regval))
+                    .emit(&mut trace.buffer, arch::varfmt);
             }
             let _ = trace.writer.write_all(trace.buffer.as_slice());
             trace.buffer.clear();
@@ -143,7 +137,7 @@ impl Trace {
         let tid = arch::current_tid(cpu);
         Self::with(move |trace| {
             if trace.last_pid != pid {
-                Record::from(ProcessId::new(pid)).emit(&mut trace.buffer, arch::varfmt); 
+                Record::from(ProcessId::new(pid)).emit(&mut trace.buffer, arch::varfmt);
                 trace.last_pid = pid;
             }
             if trace.last_tid != tid {
@@ -168,7 +162,8 @@ impl Trace {
 
     #[inline]
     fn with<F, R>(f: F) -> R
-        where F: for<'a> FnOnce(&'a mut Trace) -> R
+    where
+        F: for<'a> FnOnce(&'a mut Trace) -> R,
     {
         let Some(trace) = TRACE.get() else {
             // TODO: log this
@@ -195,12 +190,13 @@ pub fn init(_: &mut PluginHandle) -> bool {
 }
 
 #[panda::virt_mem_after_read]
-pub fn on_mem_read(cpu: &mut CPUState,
+pub fn on_mem_read(
+    cpu: &mut CPUState,
     _pc: target_ptr_t,
     addr: target_ptr_t,
     size: usize,
-    buf: *mut u8) 
-{
+    buf: *mut u8,
+) {
     Trace::emit_pid_tid(cpu);
     if buf.is_null() {
         // TODO: log this
@@ -211,12 +207,13 @@ pub fn on_mem_read(cpu: &mut CPUState,
 }
 
 #[panda::virt_mem_after_write]
-pub fn on_mem_write(cpu: &mut CPUState,
+pub fn on_mem_write(
+    cpu: &mut CPUState,
     _pc: target_ptr_t,
     addr: target_ptr_t,
     size: usize,
-    buf: *mut u8)
-{
+    buf: *mut u8,
+) {
     Trace::emit_pid_tid(cpu);
     if buf.is_null() {
         // TODO: log this
@@ -244,11 +241,10 @@ pub fn uninit(_: &mut PluginHandle) {
     Trace::flush();
 }
 
-
 #[cfg(feature = "tracer-panda-bin")]
 pub fn driver(arch: panda::Arch) {
     use clap::Parser as _;
-    
+
     let args = cli::Args::parse();
     let plugin_args = args.plugin_args();
     Panda::run_after_init(move || {
@@ -276,31 +272,30 @@ pub fn driver(arch: panda::Arch) {
 mod cli {
     use super::PluginArgs;
 
-    #[derive(Debug, Clone)]
-    #[derive(clap::Parser)]
+    #[derive(Debug, Clone, clap::Parser)]
     pub struct Args {
-        #[arg(short, long, default_value="trace.out")]
+        #[arg(short, long, default_value = "trace.out")]
         pub outfile: String,
 
-        #[arg(short, long, default_value="128M")]
-        #[arg(help="Amount of memory allocated to the guest (should match the recording)")]
+        #[arg(short, long, default_value = "128M")]
+        #[arg(help = "Amount of memory allocated to the guest (should match the recording)")]
         pub mem: String,
 
-        #[arg(long, help="Enable graphics")]
+        #[arg(long, help = "Enable graphics")]
         pub graphics: bool,
 
-        #[arg(long, help="Name of recording to trace")]
+        #[arg(long, help = "Name of recording to trace")]
         pub replay: String,
 
-        #[arg(trailing_var_arg=true, allow_hyphen_values=true)]
-        #[arg(help="Additional arguments to pass to PANDA/QEMU")]
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        #[arg(help = "Additional arguments to pass to PANDA/QEMU")]
         pub additional: Vec<String>,
     }
 
     impl Args {
         pub fn plugin_args(&self) -> PluginArgs {
             PluginArgs {
-                out: self.outfile.clone()
+                out: self.outfile.clone(),
             }
         }
     }

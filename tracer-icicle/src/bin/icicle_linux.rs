@@ -1,4 +1,3 @@
-
 use std::path::PathBuf;
 
 use icicle_fuzzing::FuzzConfig;
@@ -29,14 +28,15 @@ fn init_linux_vm() -> Result<Vm, String> {
     let mut vm = icicle_vm::build(&config.cpu_config()).map_err(|e| format!("{:?}", e))?;
 
     let linux_config = KernelConfig::default();
-    let sysroot = std::env::var_os("ICICLE_SYSROOT")
-        .map_or_else(|| PathBuf::from("/"), PathBuf::from);
+    let sysroot =
+        std::env::var_os("ICICLE_SYSROOT").map_or_else(|| PathBuf::from("/"), PathBuf::from);
     let kernel = env::build_linux_env(&mut vm, &linux_config, sysroot, true)
         .map_err(|e| format!("{:?}", e))?;
 
     vm.icount_limit = config.icount_limit;
     vm.set_env(kernel);
-    vm.env.load(vm.cpu.as_mut(), config.guest_args[0].as_bytes())?;
+    vm.env
+        .load(vm.cpu.as_mut(), config.guest_args[0].as_bytes())?;
 
     Ok(vm)
 }
