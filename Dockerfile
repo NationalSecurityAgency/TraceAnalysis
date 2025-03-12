@@ -148,7 +148,7 @@ ADD https://repo1.maven.org/maven2/org/json/json/${JAVA_JSON_DATE}/json-${JAVA_J
     /usr/share/java/json-${JAVA_JSON_DATE}.jar
 
 # Install extra rust utilities
-RUN cargo install mdbook just
+RUN cargo install --locked mdbook just
 
 ###############################################################################
 
