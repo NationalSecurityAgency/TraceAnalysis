@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -48,7 +48,8 @@ struct PartialSymbolEntry {
   const OpToken *token;		///< Operator used to drill-down to the field
   const TypeField *field;	///< The component object describing the field
   const Datatype *parent;	///< The parent data-type owning the field
-  string fieldname;		///< The name of the field
+  int8 offset;			///< Array index or unlabeled offset (if field is null)
+  int4 size;			///< (if > 0) Size of the unlabeled entry
   EmitMarkup::syntax_highlight hilite;	///< Highlight information for the field token
 };
 
@@ -321,7 +322,7 @@ public:
   virtual void opFloatNeg(const PcodeOp *op) { opUnary(&unary_minus,op); }
   virtual void opFloatAbs(const PcodeOp *op) { opFunc(op); }
   virtual void opFloatSqrt(const PcodeOp *op) { opFunc(op); }
-  virtual void opFloatInt2Float(const PcodeOp *op) { opTypeCast(op); }
+  virtual void opFloatInt2Float(const PcodeOp *op);
   virtual void opFloatFloat2Float(const PcodeOp *op) { opTypeCast(op); }
   virtual void opFloatTrunc(const PcodeOp *op) { opTypeCast(op); }
   virtual void opFloatCeil(const PcodeOp *op) { opFunc(op); }
