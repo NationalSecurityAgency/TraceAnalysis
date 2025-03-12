@@ -2,6 +2,10 @@
 
 **TraceAnalysis** is a suite of tools for generating, manipulating, analyzing, and exploring program execution traces.
 
+## Quickstart
+
+See [this page](docs/src/examples.md) for a walkthrough of a simple example.
+
 ## Building
 
 Currently, **TraceAnalysis** is _only_ supported on Ubuntu 22.04. This does not mean that the tools won't build or work on other distributions/platforms, just that we only test on Ubuntu 22.04. A `Dockerfile` is provided that summarizes the build steps and dependencies. However, provided you have the appropriate toolchains and dependencies in place, you can build any individual tool using the recipes availble in the project's `.justfile`. Each tool has its own `.justfile`, but the types of recipes available are pretty much the same for each tool.
