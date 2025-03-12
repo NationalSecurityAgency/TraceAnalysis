@@ -2,7 +2,7 @@ let tick={0}
 let blockaddr="{1}"
 let mod="{2}"
 let modbase={3}
-let module=first(for m in modules filter concat("/sysroot",m.path) == mod return m)
+let module=first(for m in modules filter m.path == mod return m)
 for ins in instructionruns filter ins.tick == tick
 let cds=( 
   for b in blocks filter b.addr == blockaddr and b.module == mod // the b.module, module.path, and the mod variable all need syncing in some form............

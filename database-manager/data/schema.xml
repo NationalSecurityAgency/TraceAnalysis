@@ -161,7 +161,7 @@
       <field>startindex</field>
     </index>
   </node>
-  <node name="functions" sourcetype="static" sourcefile="function.jsonl">
+  <node name="functions" sourcetype="static" sourcefile="functions.jsonl">
     <description>The functions statically deduced by Ghidra</description>
     <attr name="name" type="string">
       <description>The name of the function</description>
@@ -186,7 +186,7 @@
       <field>name</field>
     </index>
   </node>
-  <node name="blocks" sourcetype="static" sourcefile="block.jsonl">
+  <node name="blocks" sourcetype="static" sourcefile="blocks.jsonl">
     <description>The basic blocks</description>
     <attr name="module" type="string">
       <description>The full path of the module from which the block comes</description>
