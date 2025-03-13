@@ -251,8 +251,18 @@ fn write_deltas(chan: Receiver<DeltaMessage>, mut out: Writer<File>) {
                                 None
                             }
                         };
-                        let raw = &delta.value.as_raw()[..delta.size as usize];
-                        write!(raw_buffer, "{}", PartialPrinter(raw)).unwrap();
+                        if let Some(raw) = delta.value.as_raw().get(..delta.size as usize) {
+                            write!(raw_buffer, "{}", PartialPrinter(raw)).unwrap();
+                        } else {
+                            warn!(
+                                size = delta.size,
+                                tick = tick,
+                                "delta size is too big for raw printer, printing ??'s"
+                            );
+                            for _ in 0..delta.size {
+                                write!(raw_buffer, "??").unwrap();
+                            }
+                        }
                         record.raw = Some(raw_buffer.as_str());
                         record.size = Some(delta.size);
                     }
