@@ -585,7 +585,7 @@ def import_to_database(args):
 
 def start_ghidra_client():
     info("Starting ghidra client")
-    extensions = Path.home() / ".ghidra" / ".ghidra_11.0_PUBLIC" / "Extensions"
+    extensions = Path.home() / ".ghidra" / ".ghidra_11.3.1_PUBLIC" / "Extensions"
     extensions.mkdir(parents=True)
     command = f"unzip /usr/local/share/tracemadness/*_tracemadness.zip -d {extensions}"
     debug(f"Running command: {command}")
