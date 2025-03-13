@@ -197,8 +197,8 @@ COPY --from=builder /vendor/apt/libosi_22.04.deb /var/cache/apt/archives/libosi_
 RUN apt-get install --no-install-recommends -y /var/cache/apt/archives/libosi_22.04.deb
 
 # Install Ghidra and set env vars
-ARG GHIDRA_VERSION=11.0
-ARG GHIDRA_BUILDDATE=20231222
+ARG GHIDRA_VERSION=11.3.1
+ARG GHIDRA_BUILDDATE=20250219
 ENV GHIDRA_INSTALL_DIR=/opt/ghidra/ghidra_${GHIDRA_VERSION}_PUBLIC
 COPY --from=builder /opt/ghidra /opt/ghidra
 RUN ln -sf ${GHIDRA_INSTALL_DIR}/ghidraRun /usr/local/bin/ghidra
