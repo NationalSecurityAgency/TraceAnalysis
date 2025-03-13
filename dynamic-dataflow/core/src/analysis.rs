@@ -923,6 +923,27 @@ impl Analysis {
             "emulating operation"
         };
 
+        let pos = op.inputs().iter().chain(op.outputs().iter()).position(|addr| {
+            addr.size() > 32
+        });
+
+        if let Some(pos) = pos {
+            warn! {
+                argument_num = pos,
+                "argument is too large for partial value",
+            };
+            if let Some(oaddr) = op.outputs() {
+                emu_out.delta = Some(Delta::Dataflow(Slot::from(oaddr), None));
+
+                // TODO: this does not work if operation has variadic inputs
+                for (i, iaddr) in op.inputs().iter().copied().enumerate() {
+                    let input = Slot::from(iaddr);
+                    self.resolve_deps(&input, Some(i as u8), emu_out);
+                }
+            }
+            return;
+        }
+
         match op {
             Operation::Copy(op) => {
                 let out = op.output();
