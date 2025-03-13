@@ -3,7 +3,7 @@ package tracemadness.objectmanager;
 import java.util.HashMap;
 import java.util.Map;
 
-import tracemadness.tabularprovider.View;
+import tracemadness.View;
 
 public class ObjectManagerView implements View {
 

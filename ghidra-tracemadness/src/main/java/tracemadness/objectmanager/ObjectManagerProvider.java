@@ -22,7 +22,7 @@ import ghidra.util.table.GhidraThreadedTablePanel;
 import resources.Icons;
 import tracemadness.MadnessPlugin;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.tabularprovider.View;
+import tracemadness.View;
 
 public class ObjectManagerProvider extends ComponentProvider implements ActionContextProvider {
 
