@@ -3,7 +3,7 @@ FROM ubuntu:22.04 AS build-deps
 RUN apt-get update -yq && apt-get install --no-install-recommends -y \
     bison build-essential bzr cmake curl file flex g++ git git-lfs graphviz libbfd-dev \
     libclang-dev libglib2.0-dev libsqlite3-dev libssl-dev maven mercurial ninja-build \
-    openjdk-17-jdk openssh-client pkg-config python3 python3-pip subversion unzip wget && \
+    openjdk-21-jdk openssh-client pkg-config python3 python3-pip subversion unzip wget && \
     pip install --upgrade pip
 
 # Taken from: official rust:bullseye (1.80.0)
@@ -94,8 +94,8 @@ RUN set -eux; \
     rm -rf /tmp/libosi;
 
 # Install Ghidra and set env vars
-ARG GHIDRA_VERSION=11.0
-ARG GHIDRA_BUILDDATE=20231222
+ARG GHIDRA_VERSION=11.3.1
+ARG GHIDRA_BUILDDATE=20250219
 ENV GHIDRA_INSTALL_DIR=/opt/ghidra/ghidra_${GHIDRA_VERSION}_PUBLIC
 RUN wget https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${GHIDRA_VERSION}_build/ghidra_${GHIDRA_VERSION}_PUBLIC_${GHIDRA_BUILDDATE}.zip && \
     mkdir -p /opt/ghidra && \
@@ -197,8 +197,8 @@ COPY --from=builder /vendor/apt/libosi_22.04.deb /var/cache/apt/archives/libosi_
 RUN apt-get install --no-install-recommends -y /var/cache/apt/archives/libosi_22.04.deb
 
 # Install Ghidra and set env vars
-ARG GHIDRA_VERSION=11.0
-ARG GHIDRA_BUILDDATE=20231222
+ARG GHIDRA_VERSION=11.3.1
+ARG GHIDRA_BUILDDATE=20250219
 ENV GHIDRA_INSTALL_DIR=/opt/ghidra/ghidra_${GHIDRA_VERSION}_PUBLIC
 COPY --from=builder /opt/ghidra /opt/ghidra
 RUN ln -sf ${GHIDRA_INSTALL_DIR}/ghidraRun /usr/local/bin/ghidra

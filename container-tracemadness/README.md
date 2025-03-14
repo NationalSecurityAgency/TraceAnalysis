@@ -36,7 +36,7 @@ project. You should just need to run `docker build -t traceanalysis/tracemadness
 3. Run Ghidra inside the container and configure the TraceMadness plugin:
 
    1. Inside the container, run `DISPLAY=:0
-   /opt/ghidra/ghidra_11.0_PUBLIC/ghidraRun`. This makes assumptions about your
+   /opt/ghidra/ghidra_11.3.1_PUBLIC/ghidraRun`. This makes assumptions about your
    X11 setup. See the prerequisites section below for some notes.
 
    2. Accept the Ghidra User Agreement

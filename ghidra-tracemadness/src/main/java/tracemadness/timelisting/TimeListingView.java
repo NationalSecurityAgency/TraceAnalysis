@@ -3,7 +3,7 @@ package tracemadness.timelisting;
 import java.util.HashMap;
 import java.util.Map;
 
-import tracemadness.tabularprovider.View;
+import tracemadness.View;
 
 public class TimeListingView implements View {
 

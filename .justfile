@@ -134,7 +134,7 @@ package:
     Priority: optional
     Architecture: amd64
     Depends: libsqlite3-0, python3 (>= 3.10), python3 (<< 3.11)
-    Recommends: openjdk-17-jdk, arangodb3 (= 3.11.6-1)
+    Recommends: openjdk-21-jdk, arangodb3 (= 3.11.6-1)
     Suggests: pandare (= 3.1.0), libosi (= 0.1.1)
     Maintainer: Placeholder <dummy@nowhere.invalid>
     Description: Trace Analysis

@@ -3,7 +3,7 @@ build-dir := env("BUILD_DIR", project-root / "build")
 install-root := env("INSTALL_ROOT", "/")
 install-prefix := env("INSTALL_PREFIX", "usr/local")
 
-ghidra-version := env("GHIDRA_VERSION", "11.0")
+ghidra-version := env("GHIDRA_VERSION", "11.3.1")
 ghidra-install-dir := env("GHIDRA_INSTALL_DIR", '/opt/ghidra/ghidra_' + ghidra-version + '_PUBLIC')
 arangodb-java-version := env("ARANGODB_JAVA_VERSION", "7.3.0")
 java-json-version := env("JAVA_JSON_VERSION", "20231013")

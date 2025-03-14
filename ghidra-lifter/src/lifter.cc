@@ -253,7 +253,8 @@ void GhidraLifter::Architecture::buildSpecFile(ghidra::DocumentStorage& store) {
     }
     
     try {
-        ghidra::Document* doc = store.openDocument(slafile);
+        std::istringstream s("<sleigh>" + slafile + "</sleigh>");
+        ghidra::Document* doc = store.parseDocument(s);
         store.registerTag(doc->getRoot());
     } catch (ghidra::DecoderError& err) {
         std::ostringstream serr;
