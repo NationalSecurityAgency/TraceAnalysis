@@ -1,12 +1,9 @@
 use anyhow::{Error, Result};
 use clap::Parser;
-use core::ops::ControlFlow;
-//use dataflow::architecture::Architecture;
-//use dataflow::prelude::{GhidraLifter, Lift, Operation, SpaceManager};
-use hashbrown::HashMap;
 use std::fs;
 use std::io::{self, Read, Write};
 use std::num::ParseIntError;
+use std::ops::ControlFlow;
 use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::emit_le64;
@@ -31,11 +28,15 @@ struct Args {
 
     /// Maps file
     #[arg(long)]
-    map: String,
+    map: Option<String>,
 
-    /// Emit only the given ranges (rather than the default of omitting them)
-    #[arg(short, long)]
-    emitonly: bool,
+    /// Keep only the given ranges
+    #[arg(long)]
+    keep: bool,
+    
+    /// Remove the given ranges
+    #[arg(long)]
+    remove: bool,
 
     /// Verbosity level for stderr logging.
     #[arg(short, action = clap::ArgAction::Count)]
@@ -63,6 +64,20 @@ struct ModuleFilter {
     end: Option<u64>,
     name: String,
     model: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ParseKeepRemoveError;
+
+impl std::error::Error for ParseKeepRemoveError {}
+impl std::fmt::Display for ParseKeepRemoveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Must supply exactly one of --keep or --remove"
+        )?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -134,8 +149,8 @@ impl FromStr for IntervalFilter {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
 	
         let im = s.split_once("=");
-	let mut ivalstr;
-	let mut model : Option<String>;
+	let ivalstr;
+	let model : Option<String>;
 	match im {
 	    None => {
 		ivalstr = s;
@@ -178,10 +193,10 @@ fn main() -> Result<()> {
 
     let mut collector = collector::TraceCollector::new();
 
-    let mut reg_write_effects: HashMap<u32, Vec<u8>> = HashMap::new();
-    let mut memory_write_effects: HashMap<u64, u8> = HashMap::new();
-    let mut memory_read_effects: HashMap<u64, u8> = HashMap::new();
-
+    if args.keep != !args.remove {
+	return Err(ParseKeepRemoveError {})?;
+    }
+    
     let input = open_input(args.input.as_str())?;
     let mut output = open_output(args.output.as_str())?;
     let mut trace = TraceReader::new(input);
@@ -218,7 +233,7 @@ fn main() -> Result<()> {
 	    prev_model = model.clone();
             if let Record::Pc(ref pc) = record {
 		for r in ranges.iter() {
-		    if args.emitonly {
+		    if args.keep {
 			emit = false;
 		    } else {
 			emit = true;
@@ -226,7 +241,7 @@ fn main() -> Result<()> {
 		    model = None;
 		    if r.start <= pc.pc() && pc.pc() <= r.end {
 			model = r.model.clone();
-			if args.emitonly {
+			if args.keep {
 			    emit = true;
 			} else {
 			    emit = false;
@@ -235,7 +250,6 @@ fn main() -> Result<()> {
 		    }
 		}
             }
-            try_cont!(stderr.write(format!("Model: {:?} {:?}\n", model, was_emitting).as_bytes()));
             if prev_model.is_some() && // if we were in the middle of modelling and...
 		((model.is_none()) || // either we are done with applying the previous model...
 		 (model.is_some() && (model.as_ref().unwrap() != prev_model.as_ref().unwrap()))) // or we are switching to a different model
@@ -248,7 +262,6 @@ fn main() -> Result<()> {
 		
 		// emit mem read effects
                 for (key, value) in &collector.memory_read_effects {
-                    try_cont!(stderr.write(format!("KEY: {:x?}\n", *key).as_bytes()));
                     Record::MemRead(MemRead::new(*key, &[*value]))
                         .emit(&mut record_bytes, emit_le64);
                     try_cont!(output.write(&record_bytes));
@@ -264,7 +277,6 @@ fn main() -> Result<()> {
 
                 // emit mem write effects
                 for (key, value) in &collector.memory_write_effects {
-                    try_cont!(stderr.write(format!("KEY2: {:x?}\n", *key).as_bytes()));
                     Record::MemWrite(MemWrite::new(*key, &[*value]))
                         .emit(&mut record_bytes, emit_le64);
                     try_cont!(output.write(&record_bytes));

@@ -106,6 +106,10 @@ impl SpacetimeRTree {
         results
     }
 
+    pub fn kind(&self) -> SpaceKind {
+        self.space
+    }
+
     pub fn last_tick(&self) -> u64 {
         self.trunk.max
     }

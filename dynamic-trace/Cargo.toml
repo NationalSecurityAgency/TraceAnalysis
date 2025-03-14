@@ -31,9 +31,13 @@ required-features = ["dynamic-trace-bin"]
 name = "tm-filter-pc"
 required-features = ["dynamic-trace-bin"]
 
-#[[bin]]
-#name = "tm-filter-time"
-#required-features = ["dynamic-trace-bin"]
+[[bin]]
+name = "tm-filter-time"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
+name = "tm-mem-query"
+required-features = ["dynamic-trace-bin"]
 
 [[bin]]
 name = "tm-index"
