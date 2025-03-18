@@ -48,6 +48,10 @@ name = "tm-ftrace"
 required-features = ["dynamic-trace-bin"]
 
 [[bin]]
+name = "tm-strace"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
 name = "tm-index"
 required-features = ["dynamic-trace-bin"]
 

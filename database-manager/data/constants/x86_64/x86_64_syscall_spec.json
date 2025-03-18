@@ -1,0 +1,7 @@
+{
+	"opcodes":["0f05","0f34","cd80"],
+	"reg_width":8,
+	"num_reg":0,
+	"ret_reg":0,
+	"arg_regs":[56, 48, 16, 144, 128, 136]
+}

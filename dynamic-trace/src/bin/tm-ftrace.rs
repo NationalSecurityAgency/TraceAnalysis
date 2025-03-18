@@ -81,8 +81,7 @@ fn get_addr_table(mapfile : String, sysroot : String) -> Result<HashMap<u64, Str
 	    }
 	}
     }
-    Ok(ans)
-   
+    Ok(ans)   
 }
 
 fn parse_int(s: &str) -> std::result::Result<u64, std::num::ParseIntError> {
