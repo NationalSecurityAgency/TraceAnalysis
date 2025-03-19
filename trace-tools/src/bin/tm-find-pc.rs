@@ -1,8 +1,8 @@
 use anyhow::{Error, Result};
 use clap::Parser;
 use goblin::elf;
-use serde::{Deserialize, Deserializer};
 use serde::de::Visitor;
+use serde::{Deserialize, Deserializer};
 use std::fmt;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
@@ -12,10 +12,7 @@ use std::path::Path;
 use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
-use trace::{
-    record::Record,
-    RuntimeError,
-};
+use trace::{record::Record, RuntimeError};
 
 /// Filters
 #[derive(Parser, Debug)]
@@ -44,7 +41,7 @@ struct Args {
     /// Module to locate
     #[arg(long)]
     module: Option<String>,
-    
+
     /// Symbol within module of PC to locate
     #[arg(long)]
     symbol: Option<String>,
@@ -52,56 +49,61 @@ struct Args {
     /// Number of instances to emit (omit this option to emit all)
     #[arg(short)]
     count: Option<u32>,
-    
+
     /// What absolute PC to search for
     #[arg(short, long)]
     pc: Option<Pc>,
-
 }
 
 #[derive(Debug, Deserialize)]
 pub struct MapEntry {
-    pub name : String,
-    pub low : Pc,
-    pub high : Pc,
+    pub name: String,
+    pub low: Pc,
+    pub high: Pc,
 }
 
-fn get_addr(mapfile : String, sysroot : String, module : String, symbol : String) -> Option<Pc> {
+fn get_addr(mapfile: String, sysroot: String, module: String, symbol: String) -> Option<Pc> {
     let mappath = Path::new(&mapfile);
     let mapf = fs::File::open(mappath).unwrap();
     let mapreader = io::BufReader::new(mapf);
     for mapline in mapreader.lines() {
-	if let Ok(mapline) = mapline {
-	    let mapentry = serde_json::from_str::<MapEntry>(&mapline);
-	    match mapentry {
-		Ok(mapentry) => {
-		    if mapentry.name != module {
-			continue;
-		    }
-		    if let Ok(data) = fs::read(Path::new(&sysroot.as_str()).join(&mapentry.name.as_str()[1..])) {
-			if let Ok(elf) = elf::Elf::parse(&*data) {
-			    for d in elf.dynsyms.iter() {
-				if let Some(x) = elf.dynstrtab.get_at(d.st_name) {
-				    if x == symbol {
-					return Some(Pc{pc:mapentry.low.pc + d.st_value});
-				    }
-				}
-			    }
-			    for d in elf.syms.iter() {
-				if let Some(x) = elf.strtab.get_at(d.st_name) {
-				    if x == symbol {
-					return Some(Pc{pc:mapentry.low.pc + d.st_value});
-				    }
-				}
-			    }
-			}
-		    }
-		}
-		Err(e) => {
-		    eprintln!("{}", e);
-		}
-	    }
-	}
+        if let Ok(mapline) = mapline {
+            let mapentry = serde_json::from_str::<MapEntry>(&mapline);
+            match mapentry {
+                Ok(mapentry) => {
+                    if mapentry.name != module {
+                        continue;
+                    }
+                    if let Ok(data) =
+                        fs::read(Path::new(&sysroot.as_str()).join(&mapentry.name.as_str()[1..]))
+                    {
+                        if let Ok(elf) = elf::Elf::parse(&*data) {
+                            for d in elf.dynsyms.iter() {
+                                if let Some(x) = elf.dynstrtab.get_at(d.st_name) {
+                                    if x == symbol {
+                                        return Some(Pc {
+                                            pc: mapentry.low.pc + d.st_value,
+                                        });
+                                    }
+                                }
+                            }
+                            for d in elf.syms.iter() {
+                                if let Some(x) = elf.strtab.get_at(d.st_name) {
+                                    if x == symbol {
+                                        return Some(Pc {
+                                            pc: mapentry.low.pc + d.st_value,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+            }
+        }
     }
     None
 }
@@ -148,7 +150,7 @@ impl<'de> Deserialize<'de> for Pc {
             where
                 E: serde::de::Error,
             {
-                Ok(Pc {pc : v})
+                Ok(Pc { pc: v })
             }
         }
 
@@ -159,19 +161,19 @@ impl<'de> Deserialize<'de> for Pc {
 impl FromStr for Pc {
     type Err = ParseIntError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-	let x = parse_int(s)?;
-	Ok(Pc { pc: x })
+        let x = parse_int(s)?;
+        Ok(Pc { pc: x })
     }
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
     stderrlog::new().verbosity(args.verbose as usize).init()?;
-    
+
     let input = open_input(args.input.as_str())?;
     let mut output = open_output(args.output.as_str())?;
     let mut trace = TraceReader::new(input);
-    
+
     let raw = trace.next().ok_or(RuntimeError::MissingMagic)?;
     if Record::Magic != raw.parse(parse_unknown)? {
         return Err(RuntimeError::MissingMagic)?;
@@ -188,43 +190,43 @@ fn main() -> Result<()> {
     output.write(raw.bytes())?;
 
     let mut _stderr = io::stderr();
-    
+
     let mut tick = 0 as u64;
     let mut hits = 0 as u32;
 
-    let mut target : Option<Pc> = None;
+    let mut target: Option<Pc> = None;
     if args.pc.is_some() {
-	target = args.pc;
+        target = args.pc;
     } else if let Some(mapfile) = args.map {
-	if let Some(sysroot) = args.sysroot {
-	    if let Some(module) = args.module {
-		if let Some(symbol) = args.symbol {
-		    target = get_addr(mapfile, sysroot, module, symbol);
-		}
-	    }
-	}
+        if let Some(sysroot) = args.sysroot {
+            if let Some(module) = args.module {
+                if let Some(symbol) = args.symbol {
+                    target = get_addr(mapfile, sysroot, module, symbol);
+                }
+            }
+        }
     }
-    
+
     trace
         .for_each(|raw| -> ControlFlow<Error> {
             let record = try_cont!(arch.parse_record(raw));
-	    
-	    if let Record::Pc(_) = record {
-		tick += 1;
-	    }
-	    
-	    if args.count.is_none() || (args.count.is_some() && args.count.unwrap() > hits) {
-		if let Record::Pc(ref pc) = record {
-		    if let Some(target) = &target {
-			if target.pc == pc.pc() {
-			    hits += 1;
-			    eprintln!("{tick}");
-			}
-		    }
-		}
-	    }
+
+            if let Record::Pc(_) = record {
+                tick += 1;
+            }
+
+            if args.count.is_none() || (args.count.is_some() && args.count.unwrap() > hits) {
+                if let Record::Pc(ref pc) = record {
+                    if let Some(target) = &target {
+                        if target.pc == pc.pc() {
+                            hits += 1;
+                            eprintln!("{tick}");
+                        }
+                    }
+                }
+            }
             try_cont!(output.write(raw.bytes()));
-	    cont!();
+            cont!();
         })
         .map_or(Ok(()), |err| Err(err.into()))
 }

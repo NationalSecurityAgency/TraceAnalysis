@@ -2,8 +2,8 @@ use anyhow::{Error, Result};
 use clap::Parser;
 use goblin::elf;
 use hashbrown::HashMap;
-use serde::{Deserialize, Deserializer};
 use serde::de::Visitor;
+use serde::{Deserialize, Deserializer};
 use std::fmt;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
@@ -13,10 +13,7 @@ use std::path::Path;
 use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
-use trace::{
-    record::Record,
-    RuntimeError,
-};
+use trace::{record::Record, RuntimeError};
 
 /// Filters
 #[derive(Parser, Debug)]
@@ -45,43 +42,51 @@ struct Args {
 
 #[derive(Debug, Deserialize)]
 pub struct MapEntry {
-    pub name : String,
-    pub low : Pc,
-    pub high : Pc,
+    pub name: String,
+    pub low: Pc,
+    pub high: Pc,
 }
 
-fn get_addr_table(mapfile : String, sysroot : String) -> Result<HashMap<u64, String>> {
+fn get_addr_table(mapfile: String, sysroot: String) -> Result<HashMap<u64, String>> {
     let mut ans = HashMap::new();
 
     let mappath = Path::new(&mapfile);
     let mapf = fs::File::open(mappath)?;
     let mapreader = io::BufReader::new(mapf);
     for mapline in mapreader.lines() {
-	if let Ok(mapline) = mapline {
-	    let mapentry = serde_json::from_str::<MapEntry>(&mapline);
-	    match mapentry {
-		Ok(mapentry) => {
-		    if let Ok(data) = fs::read(Path::new(&sysroot.as_str()).join(&mapentry.name.as_str()[1..])) {
-			let elf = elf::Elf::parse(&*data)?;
-			for d in elf.dynsyms.iter() {
-			    if let Some(x) = elf.dynstrtab.get_at(d.st_name) {
-				ans.insert(mapentry.low.pc + d.st_value, format!("{}.{}", mapentry.name, x));
-			    }
-			}
-			for d in elf.syms.iter() {
-			    if let Some(x) = elf.strtab.get_at(d.st_name) {
-				ans.insert(mapentry.low.pc + d.st_value, format!("{}.{}", mapentry.name, x));
-			    }
-			}
-		    }
-		}
-		Err(e) => {
-		    eprintln!("{}", e);
-		}
-	    }
-	}
+        if let Ok(mapline) = mapline {
+            let mapentry = serde_json::from_str::<MapEntry>(&mapline);
+            match mapentry {
+                Ok(mapentry) => {
+                    if let Ok(data) =
+                        fs::read(Path::new(&sysroot.as_str()).join(&mapentry.name.as_str()[1..]))
+                    {
+                        let elf = elf::Elf::parse(&*data)?;
+                        for d in elf.dynsyms.iter() {
+                            if let Some(x) = elf.dynstrtab.get_at(d.st_name) {
+                                ans.insert(
+                                    mapentry.low.pc + d.st_value,
+                                    format!("{}.{}", mapentry.name, x),
+                                );
+                            }
+                        }
+                        for d in elf.syms.iter() {
+                            if let Some(x) = elf.strtab.get_at(d.st_name) {
+                                ans.insert(
+                                    mapentry.low.pc + d.st_value,
+                                    format!("{}.{}", mapentry.name, x),
+                                );
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+            }
+        }
     }
-    Ok(ans)   
+    Ok(ans)
 }
 
 fn parse_int(s: &str) -> std::result::Result<u64, std::num::ParseIntError> {
@@ -126,7 +131,7 @@ impl<'de> Deserialize<'de> for Pc {
             where
                 E: serde::de::Error,
             {
-                Ok(Pc {pc : v})
+                Ok(Pc { pc: v })
             }
         }
 
@@ -137,19 +142,19 @@ impl<'de> Deserialize<'de> for Pc {
 impl FromStr for Pc {
     type Err = ParseIntError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-	let x = parse_int(s)?;
-	Ok(Pc { pc: x })
+        let x = parse_int(s)?;
+        Ok(Pc { pc: x })
     }
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
     stderrlog::new().verbosity(args.verbose as usize).init()?;
-    
+
     let input = open_input(args.input.as_str())?;
     let mut output = open_output(args.output.as_str())?;
     let mut trace = TraceReader::new(input);
-    
+
     let raw = trace.next().ok_or(RuntimeError::MissingMagic)?;
     if Record::Magic != raw.parse(parse_unknown)? {
         return Err(RuntimeError::MissingMagic)?;
@@ -166,34 +171,34 @@ fn main() -> Result<()> {
     output.write(raw.bytes())?;
 
     let mut _stderr = io::stderr();
-    
+
     let mut tick = 0 as u64;
 
     let mut syms = HashMap::new();
     if let Some(mapfile) = args.map {
-	if let Some(sysroot) = args.sysroot {
-	    if let Ok(s) = get_addr_table(mapfile, sysroot) {
-		syms = s;
-	    }
-	}
+        if let Some(sysroot) = args.sysroot {
+            if let Ok(s) = get_addr_table(mapfile, sysroot) {
+                syms = s;
+            }
+        }
     }
-    
+
     trace
         .for_each(|raw| -> ControlFlow<Error> {
             let record = try_cont!(arch.parse_record(raw));
-	    
-	    if let Record::Pc(_) = record {
-		tick += 1;
-	    }
-	    
-	    if let Record::Pc(ref pc) = record {
-		let addr = pc.pc();
-		if let Some(name) = syms.get(&addr) {
-		    eprintln!("{tick} {addr:x} {name}");
-		}
-	    }
+
+            if let Record::Pc(_) = record {
+                tick += 1;
+            }
+
+            if let Record::Pc(ref pc) = record {
+                let addr = pc.pc();
+                if let Some(name) = syms.get(&addr) {
+                    eprintln!("{tick} {addr:x} {name}");
+                }
+            }
             try_cont!(output.write(raw.bytes()));
-	    cont!();
+            cont!();
         })
         .map_or(Ok(()), |err| Err(err.into()))
 }

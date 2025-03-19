@@ -7,20 +7,19 @@ pub struct TraceCollector {
     pub memory_read_effects: HashMap<u64, u8>,
 }
 
-
-
 impl TraceCollector {
     pub fn new() -> Self {
-	Self {
-	    reg_write_effects: HashMap::new(),
-	    memory_write_effects: HashMap::new(),
-	    memory_read_effects: HashMap::new(),
-	}
+        Self {
+            reg_write_effects: HashMap::new(),
+            memory_write_effects: HashMap::new(),
+            memory_read_effects: HashMap::new(),
+        }
     }
     pub fn update(&mut self, record: Record) {
-	if let Record::RegWrite(rec) = record {
+        if let Record::RegWrite(rec) = record {
             let key = rec.regnum();
-            self.reg_write_effects.insert(key, Vec::from(rec.contents()));
+            self.reg_write_effects
+                .insert(key, Vec::from(rec.contents()));
         } else if let Record::MemWrite(rec) = record {
             let key = rec.address();
             let mut i: u64 = 0 as u64;
@@ -32,18 +31,18 @@ impl TraceCollector {
             let key = rec.address();
             let mut i: u64 = 0 as u64;
             for x in rec.contents() {
-		if !self.memory_write_effects.contains_key(&(key+i)) {
-		    // we only want to write this effect if we haven't already written to the address being read
+                if !self.memory_write_effects.contains_key(&(key + i)) {
+                    // we only want to write this effect if we haven't already written to the address being read
                     self.memory_read_effects.insert(key + i, *x);
-		}
+                }
                 i += 1;
             }
         }
     }
-    
+
     pub fn clear(&mut self) {
-	self.reg_write_effects.clear();
-	self.memory_write_effects.clear();
-	self.memory_read_effects.clear();
+        self.reg_write_effects.clear();
+        self.memory_write_effects.clear();
+        self.memory_read_effects.clear();
     }
 }

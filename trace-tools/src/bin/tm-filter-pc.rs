@@ -8,11 +8,11 @@ use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::emit_le64;
 use trace::record::parse_unknown;
-use trace_tools::collector;
 use trace::{
     record::{MemRead, MemWrite, Meta, ModelEffectsBegin, ModelEffectsEnd, Record, RegWrite},
     RuntimeError,
 };
+use trace_tools::collector;
 
 /// Filters
 #[derive(Parser, Debug)]
@@ -33,7 +33,7 @@ struct Args {
     /// Keep only the given ranges
     #[arg(long)]
     keep: bool,
-    
+
     /// Remove the given ranges
     #[arg(long)]
     remove: bool,
@@ -72,10 +72,7 @@ struct ParseKeepRemoveError;
 impl std::error::Error for ParseKeepRemoveError {}
 impl std::fmt::Display for ParseKeepRemoveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Must supply exactly one of --keep or --remove"
-        )?;
+        write!(f, "Must supply exactly one of --keep or --remove")?;
         Ok(())
     }
 }
@@ -130,60 +127,67 @@ fn parse_int(s: &str) -> std::result::Result<u64, std::num::ParseIntError> {
 impl FromStr for ModuleFilter {
     type Err = ParseIntervalError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-	
         let im = s.split_once("=");
-	match im  {
-	    None => {
-		Ok(ModuleFilter { start: None, end: None, name: s.to_string(), model: None })
-	    }
-	    Some((module, model)) => {
-		Ok(ModuleFilter { start: None, end: None, name: module.to_string(), model: Some(model.to_string()) })
-	    }
-	}
-
+        match im {
+            None => Ok(ModuleFilter {
+                start: None,
+                end: None,
+                name: s.to_string(),
+                model: None,
+            }),
+            Some((module, model)) => Ok(ModuleFilter {
+                start: None,
+                end: None,
+                name: module.to_string(),
+                model: Some(model.to_string()),
+            }),
+        }
     }
 }
 
 impl FromStr for IntervalFilter {
     type Err = ParseIntervalError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-	
         let im = s.split_once("=");
-	let ivalstr;
-	let model : Option<String>;
-	match im {
-	    None => {
-		ivalstr = s;
-		model = None;
-	    } 
-	    Some((r, m)) => {
-		ivalstr = r;
-		model = Some(m.to_string());
-	    }
-	}
-	let t = ivalstr.split_once(":");
-	match t {
-	    None => Err(ParseIntervalError::Range(ParseRangeError {})),
-	    Some((xstr, ystr)) => {
-		let x: u64;
-		if xstr.len() == 0 {
-		    x = 0 as u64;
-		} else {
-		    x = parse_int(xstr)?;
-		}
-		
-		let y: u64;
-		if ystr.len() == 0 {
-		    y = u64::max_value();
-		} else {
-		    y = parse_int(ystr)?;
-		}
-		if x > y {
-		    return Err(ParseIntervalError::Range(ParseRangeError {}));
-		}
-		Ok(IntervalFilter { start: x, end: y, model })
-	    }
-	}
+        let ivalstr;
+        let model: Option<String>;
+        match im {
+            None => {
+                ivalstr = s;
+                model = None;
+            }
+            Some((r, m)) => {
+                ivalstr = r;
+                model = Some(m.to_string());
+            }
+        }
+        let t = ivalstr.split_once(":");
+        match t {
+            None => Err(ParseIntervalError::Range(ParseRangeError {})),
+            Some((xstr, ystr)) => {
+                let x: u64;
+                if xstr.len() == 0 {
+                    x = 0 as u64;
+                } else {
+                    x = parse_int(xstr)?;
+                }
+
+                let y: u64;
+                if ystr.len() == 0 {
+                    y = u64::max_value();
+                } else {
+                    y = parse_int(ystr)?;
+                }
+                if x > y {
+                    return Err(ParseIntervalError::Range(ParseRangeError {}));
+                }
+                Ok(IntervalFilter {
+                    start: x,
+                    end: y,
+                    model,
+                })
+            }
+        }
     }
 }
 
@@ -194,13 +198,13 @@ fn main() -> Result<()> {
     let mut collector = collector::TraceCollector::new();
 
     if args.keep != !args.remove {
-	return Err(ParseKeepRemoveError {})?;
+        return Err(ParseKeepRemoveError {})?;
     }
-    
+
     let input = open_input(args.input.as_str())?;
     let mut output = open_output(args.output.as_str())?;
     let mut trace = TraceReader::new(input);
-    
+
     let raw = trace.next().ok_or(RuntimeError::MissingMagic)?;
     if Record::Magic != raw.parse(parse_unknown)? {
         return Err(RuntimeError::MissingMagic)?;
@@ -218,47 +222,50 @@ fn main() -> Result<()> {
 
     let mut was_emitting = true;
     let mut prev_model = None;
-    
+
     let mut emit = true;
     let mut model = None;
-    
+
     let ranges = args.range.as_slice();
-    
+
     trace
         .for_each(|raw| -> ControlFlow<Error> {
             let record = try_cont!(arch.parse_record(raw));
             was_emitting = emit;
-	    prev_model = model.clone();
+            prev_model = model.clone();
             if let Record::Pc(ref pc) = record {
-		for r in ranges.iter() {
-		    if args.keep {
-			emit = false;
-		    } else {
-			emit = true;
-		    }
-		    model = None;
-		    if r.start <= pc.pc() && pc.pc() <= r.end {
-			model = r.model.clone();
-			if args.keep {
-			    emit = true;
-			} else {
-			    emit = false;
-			}
-			break;
-		    }
-		}
+                for r in ranges.iter() {
+                    if args.keep {
+                        emit = false;
+                    } else {
+                        emit = true;
+                    }
+                    model = None;
+                    if r.start <= pc.pc() && pc.pc() <= r.end {
+                        model = r.model.clone();
+                        if args.keep {
+                            emit = true;
+                        } else {
+                            emit = false;
+                        }
+                        break;
+                    }
+                }
             }
             if prev_model.is_some() && // if we were in the middle of modelling and...
 		((model.is_none()) || // either we are done with applying the previous model...
-		 (model.is_some() && (model.as_ref().unwrap() != prev_model.as_ref().unwrap()))) // or we are switching to a different model
-	    {
-		let mut record_bytes: Vec<u8> = vec![];
-                Record::Meta(Meta::ModelEffectsBegin(ModelEffectsBegin::new(prev_model.as_ref().unwrap().clone())))
-		    .emit(&mut record_bytes, emit_le64);
+		 (model.is_some() && (model.as_ref().unwrap() != prev_model.as_ref().unwrap())))
+            // or we are switching to a different model
+            {
+                let mut record_bytes: Vec<u8> = vec![];
+                Record::Meta(Meta::ModelEffectsBegin(ModelEffectsBegin::new(
+                    prev_model.as_ref().unwrap().clone(),
+                )))
+                .emit(&mut record_bytes, emit_le64);
                 try_cont!(output.write(&record_bytes));
-		record_bytes.clear();
-		
-		// emit mem read effects
+                record_bytes.clear();
+
+                // emit mem read effects
                 for (key, value) in &collector.memory_read_effects {
                     Record::MemRead(MemRead::new(*key, &[*value]))
                         .emit(&mut record_bytes, emit_le64);
@@ -281,20 +288,20 @@ fn main() -> Result<()> {
                     record_bytes.clear();
                 }
 
-		// we are done collecting...
-		collector.clear();
-		
+                // we are done collecting...
+                collector.clear();
+
                 Record::Meta(Meta::ModelEffectsEnd(ModelEffectsEnd::new()))
                     .emit(&mut record_bytes, emit_le64);
                 try_cont!(output.write(&record_bytes));
-		record_bytes.clear();
+                record_bytes.clear();
             }
             if emit {
                 // Pass trace bytes through to output
                 try_cont!(output.write(raw.bytes()));
             } else if !model.is_none() {
                 // we are not emitting records, but we still want to collect a summary of the effects during the elided period for inclusion with the model record
-		collector.update(record);
+                collector.update(record);
             }
             cont!();
         })

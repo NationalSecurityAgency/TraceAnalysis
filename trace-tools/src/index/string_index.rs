@@ -163,7 +163,7 @@ impl Add<usize> for SpacetimeLocation {
 }
 
 struct StringIndexInner {
-    head: Option<Box<dyn ByteTrieNode+Send+Sync+'static>>,
+    head: Option<Box<dyn ByteTrieNode + Send + Sync + 'static>>,
 }
 
 impl StringIndexInner {
@@ -199,8 +199,12 @@ impl StringIndexInner {
     /// Searches [self] for records where `string` was written. This does not consider
     /// aggregate writes (i.e. if "abc" was written at 0x100 and "def" was written at
     /// 0x103, this would not find "abcdef"; it could only find "abc" OR "def").
-    fn search_raw_str<'a>(&'a self, string: &[u8]) -> Option<&'a (dyn ByteTrieNode+Send+Sync+'static)> {
-        let mut node_ref: &(dyn ByteTrieNode+Send+Sync+'static) = self.head.as_ref().map(AsRef::as_ref)?;
+    fn search_raw_str<'a>(
+        &'a self,
+        string: &[u8],
+    ) -> Option<&'a (dyn ByteTrieNode + Send + Sync + 'static)> {
+        let mut node_ref: &(dyn ByteTrieNode + Send + Sync + 'static) =
+            self.head.as_ref().map(AsRef::as_ref)?;
         for c in string {
             node_ref = match node_ref.child(*c) {
                 Some(node_ref) => node_ref,
@@ -714,7 +718,7 @@ trait ByteTrieNode: Serializable {
         data: SpacetimeLocation,
         is_prefix: bool,
     ) -> Result<(), NeedsUpgrade>;
-    fn upgrade(self: Box<Self>) -> Box<dyn ByteTrieNode+Send+Sync+'static>;
+    fn upgrade(self: Box<Self>) -> Box<dyn ByteTrieNode + Send + Sync + 'static>;
     fn finalize(&mut self);
 
     /// Collects all locations where the string represented by [self] in any form.
@@ -723,7 +727,7 @@ trait ByteTrieNode: Serializable {
     fn collect_all_substrings(&self, values: &mut Vec<SpacetimeLocation>);
 
     /// Retrieves a reference to the child of this node associated with `byte`, if any.
-    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode+Send+Sync+'static)>;
+    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode + Send + Sync + 'static)>;
 }
 
 /// A dense node in a byte trie
@@ -738,7 +742,7 @@ trait ByteTrieNode: Serializable {
 /// a very sparse node, it is promoted to sparse, then to dense.
 struct DenseByteTrieNode {
     data: ByteTrieNodeData,
-    trie: [Option<Box<dyn ByteTrieNode+Send+Sync+'static>>; 256],
+    trie: [Option<Box<dyn ByteTrieNode + Send + Sync + 'static>>; 256],
 }
 
 impl DenseByteTrieNode {
@@ -776,7 +780,7 @@ impl ByteTrieNode for DenseByteTrieNode {
         Ok(())
     }
 
-    fn upgrade(self: Box<Self>) -> Box<dyn ByteTrieNode+Send+Sync+'static> {
+    fn upgrade(self: Box<Self>) -> Box<dyn ByteTrieNode + Send + Sync + 'static> {
         self
     }
 
@@ -789,7 +793,7 @@ impl ByteTrieNode for DenseByteTrieNode {
         }
     }
 
-    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode+Send+Sync+'static)> {
+    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode + Send + Sync + 'static)> {
         self.trie[byte as usize].as_ref().map(AsRef::as_ref)
     }
 
@@ -859,7 +863,7 @@ struct SparseByteTrieNode {
     data: ByteTrieNodeData,
     head: usize,
     trie_indices: [u8; 256],
-    tries: [Option<Box<dyn ByteTrieNode+Send+Sync+'static>>; DENSE_THRESHOLD],
+    tries: [Option<Box<dyn ByteTrieNode + Send + Sync + 'static>>; DENSE_THRESHOLD],
 }
 
 impl SparseByteTrieNode {
@@ -910,7 +914,7 @@ impl ByteTrieNode for SparseByteTrieNode {
         Ok(())
     }
 
-    fn upgrade(mut self: Box<Self>) -> Box<dyn ByteTrieNode+Send+Sync+'static> {
+    fn upgrade(mut self: Box<Self>) -> Box<dyn ByteTrieNode + Send + Sync + 'static> {
         let mut upgraded = DenseByteTrieNode::new();
         std::mem::swap(&mut self.data, &mut upgraded.data);
 
@@ -935,7 +939,7 @@ impl ByteTrieNode for SparseByteTrieNode {
         }
     }
 
-    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode+Send+Sync+'static)> {
+    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode + Send + Sync + 'static)> {
         if self.trie_indices[byte as usize] != u8::MAX {
             self.tries[self.trie_indices[byte as usize] as usize]
                 .as_ref()
@@ -1028,7 +1032,7 @@ impl Serializable for SparseByteTrieNode {
 struct VerySparseByteTrieNode {
     data: ByteTrieNodeData,
     head: usize,
-    trie: [(u8, Option<Box<dyn ByteTrieNode+Send+Sync+'static>>); SPARSE_THRESHOLD],
+    trie: [(u8, Option<Box<dyn ByteTrieNode + Send + Sync + 'static>>); SPARSE_THRESHOLD],
 }
 
 impl VerySparseByteTrieNode {
@@ -1079,14 +1083,15 @@ impl ByteTrieNode for VerySparseByteTrieNode {
             return Err(NeedsUpgrade);
         }
 
-        let mut node: Box<dyn ByteTrieNode+Send+Sync+'static> = Box::new(VerySparseByteTrieNode::new());
+        let mut node: Box<dyn ByteTrieNode + Send + Sync + 'static> =
+            Box::new(VerySparseByteTrieNode::new());
         insert_str(&mut node, depth + 1, string, data, is_prefix);
         self.trie[self.head] = (char, Some(node));
         self.head += 1;
         Ok(())
     }
 
-    fn upgrade(mut self: Box<Self>) -> Box<dyn ByteTrieNode+Send+Sync+'static> {
+    fn upgrade(mut self: Box<Self>) -> Box<dyn ByteTrieNode + Send + Sync + 'static> {
         let mut upgraded = SparseByteTrieNode::new();
         std::mem::swap(&mut self.data, &mut upgraded.data);
 
@@ -1108,7 +1113,7 @@ impl ByteTrieNode for VerySparseByteTrieNode {
         }
     }
 
-    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode+Send+Sync+'static)> {
+    fn child(&self, byte: u8) -> Option<&(dyn ByteTrieNode + Send + Sync + 'static)> {
         for i in 0..self.head {
             let (trie_char, Some(trie)) = &self.trie[i] else {
                 break;
@@ -1184,7 +1189,10 @@ impl Serializable for VerySparseByteTrieNode {
 #[derive(Debug, Copy, Clone)]
 struct NeedsUpgrade;
 
-fn deserialize_node(bytes: &[u8], start: &mut usize) -> Box<dyn ByteTrieNode+Send+Sync+'static> {
+fn deserialize_node(
+    bytes: &[u8],
+    start: &mut usize,
+) -> Box<dyn ByteTrieNode + Send + Sync + 'static> {
     match bytes[*start] {
         NODE_TYPE_DENSE => Box::new(DenseByteTrieNode::deserialize(bytes, start)),
         NODE_TYPE_SPARSE => Box::new(SparseByteTrieNode::deserialize(bytes, start)),
@@ -1212,7 +1220,7 @@ impl ByteTrieNode for DummyNode {
         todo!()
     }
 
-    fn upgrade(self: Box<Self>) -> Box<dyn ByteTrieNode+Send+Sync+'static> {
+    fn upgrade(self: Box<Self>) -> Box<dyn ByteTrieNode + Send + Sync + 'static> {
         todo!()
     }
 
@@ -1220,7 +1228,7 @@ impl ByteTrieNode for DummyNode {
         todo!()
     }
 
-    fn child(&self, _byte: u8) -> Option<&(dyn ByteTrieNode+Send+Sync+'static)> {
+    fn child(&self, _byte: u8) -> Option<&(dyn ByteTrieNode + Send + Sync + 'static)> {
         todo!()
     }
 
@@ -1247,7 +1255,7 @@ impl Serializable for DummyNode {
 }
 
 fn insert_str(
-    node: &mut Box<dyn ByteTrieNode+Send+Sync+'static>,
+    node: &mut Box<dyn ByteTrieNode + Send + Sync + 'static>,
     depth: usize,
     string: &[u8],
     data: SpacetimeLocation,
@@ -1256,7 +1264,7 @@ fn insert_str(
     if node.insert_str(depth, string, data, is_prefix).is_ok() {
         return;
     }
-    let mut dummy: Box<dyn ByteTrieNode+Send+Sync+'static> = Box::new(DummyNode);
+    let mut dummy: Box<dyn ByteTrieNode + Send + Sync + 'static> = Box::new(DummyNode);
     std::mem::swap(node, &mut dummy);
     dummy = dummy.upgrade();
     std::mem::swap(node, &mut dummy);

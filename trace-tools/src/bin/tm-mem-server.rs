@@ -4,15 +4,14 @@ use clap::Parser;
 use std::fs;
 
 use dataflow::prelude::SpaceKind;
-use trace_tools::index::spacetime_index::SpacetimeRTree;
-use trace_tools::index::string_index::StringIndex;
-use trace_tools::index::Serializable;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
-
+use trace_tools::index::spacetime_index::SpacetimeRTree;
+use trace_tools::index::string_index::StringIndex;
+use trace_tools::index::Serializable;
 
 /// Counts the type of each record in the trace.
 #[derive(Parser, Debug)]
@@ -23,7 +22,7 @@ struct Args {
 
     #[arg(long)]
     st_index: String,
-    
+
     #[arg(long)]
     port: u32,
 }
@@ -76,94 +75,92 @@ fn handle_client(mut stream: TcpStream, mem: Arc<SpacetimeRTree>, strs: Arc<Stri
     let mut msg_buffer = [0; 65536];
     let mut len_buffer = [0u8; 4];
     loop {
-	match stream.read(&mut len_buffer) {
+        match stream.read(&mut len_buffer) {
             Ok(lenlen) => {
-		if lenlen != 4 {
-		    return
-		}
-	    },
+                if lenlen != 4 {
+                    return;
+                }
+            }
             Err(e) => {
                 eprintln!("Failed to receive data: {}", e);
                 return;
             }
-	}
-	let msg_len = u32::from_le_bytes(len_buffer);
-	let mut recvd = 0 as usize;
+        }
+        let msg_len = u32::from_le_bytes(len_buffer);
+        let mut recvd = 0 as usize;
         match stream.read(&mut msg_buffer) {
             Ok(size) => {
                 if size == 0 {
                     // Connection was closed
                     return;
                 }
-		recvd += size;
-		while recvd < msg_len as usize {
-		    if let Ok(sz) = stream.read(&mut msg_buffer[recvd..]) {
-			if sz == 0 {
-			    return;
-			}
-			recvd += sz;
-			
-		    } else {
-			// something went wrong
-			return;
-		    }
-		}
-		
-		let request_str = String::from_utf8_lossy(&msg_buffer[..size]);
-		eprintln!("{:?}",request_str);
-		if let Ok(request) = dbg!(serde_json::from_str::<Request>(&request_str.trim())) {
-		    let mut response = Response {
-			buffer_ticks: Vec::new(),
-			mem_results: Vec::new(),
-			mem_ticks: Vec::new(),
-		    };
-		    if let Some(reqbuf) = request.buffer {
-			let results = strs.search(reqbuf.as_slice());
-			for i in 0..results.len() {
-			    response.buffer_ticks.push(results[i].created_at);
-			}
-		    }
-		    if let Some(addr) = request.mem_base {
-			if let Some(len) = request.mem_len {
-			    if let Some(tick) = request.mem_tick {
-				let results = mem.find(tick, addr, addr+len);
-				let mut ans = vec![0u8; len as usize];
-				let mut ticks = vec![0u64; len as usize];
-				for op in results.iter() {
-				    let mut i = 0;
-				    for x in op.data.iter() {
-					if op.address + i >= addr && op.address+i < addr+len {
-					    let offset = (op.address+i-addr) as usize;
-					    if op.created_at > ticks[offset] {
-						ticks[offset] = op.created_at;
-						ans[offset] = *x;
-					    }
-					}
-					i += 1;
-				    }
-				}
-				response.mem_results = ans;
-				response.mem_ticks = ticks;
-			    }
-			}
-		    }
-		    
-		    let response_str = serde_json::to_string(&response).unwrap();
-		    if let Err(e) = stream.write_all(response_str.as_bytes()) {
-			eprintln!("Failed to write to socket: {}", e);
-		    } else {
-			stream.flush().unwrap();
-		    }
-		} else {
-		    eprintln!("Failed to parse JSON request: {}", request_str);
-		}
-	    },
+                recvd += size;
+                while recvd < msg_len as usize {
+                    if let Ok(sz) = stream.read(&mut msg_buffer[recvd..]) {
+                        if sz == 0 {
+                            return;
+                        }
+                        recvd += sz;
+                    } else {
+                        // something went wrong
+                        return;
+                    }
+                }
+
+                let request_str = String::from_utf8_lossy(&msg_buffer[..size]);
+                eprintln!("{:?}", request_str);
+                if let Ok(request) = dbg!(serde_json::from_str::<Request>(&request_str.trim())) {
+                    let mut response = Response {
+                        buffer_ticks: Vec::new(),
+                        mem_results: Vec::new(),
+                        mem_ticks: Vec::new(),
+                    };
+                    if let Some(reqbuf) = request.buffer {
+                        let results = strs.search(reqbuf.as_slice());
+                        for i in 0..results.len() {
+                            response.buffer_ticks.push(results[i].created_at);
+                        }
+                    }
+                    if let Some(addr) = request.mem_base {
+                        if let Some(len) = request.mem_len {
+                            if let Some(tick) = request.mem_tick {
+                                let results = mem.find(tick, addr, addr + len);
+                                let mut ans = vec![0u8; len as usize];
+                                let mut ticks = vec![0u64; len as usize];
+                                for op in results.iter() {
+                                    let mut i = 0;
+                                    for x in op.data.iter() {
+                                        if op.address + i >= addr && op.address + i < addr + len {
+                                            let offset = (op.address + i - addr) as usize;
+                                            if op.created_at > ticks[offset] {
+                                                ticks[offset] = op.created_at;
+                                                ans[offset] = *x;
+                                            }
+                                        }
+                                        i += 1;
+                                    }
+                                }
+                                response.mem_results = ans;
+                                response.mem_ticks = ticks;
+                            }
+                        }
+                    }
+
+                    let response_str = serde_json::to_string(&response).unwrap();
+                    if let Err(e) = stream.write_all(response_str.as_bytes()) {
+                        eprintln!("Failed to write to socket: {}", e);
+                    } else {
+                        stream.flush().unwrap();
+                    }
+                } else {
+                    eprintln!("Failed to parse JSON request: {}", request_str);
+                }
+            }
             Err(e) => {
                 eprintln!("Failed to receive data: {}", e);
                 return;
             }
-	    
-	}
+        }
     }
 }
 /*
@@ -173,14 +170,14 @@ struct MySpacetimeIndex(SpacetimeRTree);
 impl std::ops::Deref for MyStringIndex {
     type Target = StringIndex<()>;
     fn deref(&self) -> &Self::Target {
-	&self.0
+    &self.0
     }
 }
 
 impl std::ops::Deref for MySpacetimeIndex {
     type Target = SpacetimeRTree;
     fn deref(&self) -> &Self::Target {
-	&self.0
+    &self.0
     }
 }
 
@@ -192,7 +189,7 @@ fn main() {
 
     let str_index = get_string_index(args.str_index.clone().as_str()).unwrap();
     let strs = Arc::new(str_index);
-    
+
     let (_reg_index, mem_index) = get_st_index_spaces(&args.st_index.clone().as_str()).unwrap();
     let mem = Arc::new(mem_index);
 

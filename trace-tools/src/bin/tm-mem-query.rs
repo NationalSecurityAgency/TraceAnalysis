@@ -17,16 +17,16 @@ struct Args {
 
     #[arg(long)]
     st_index: Option<String>,
-    
+
     #[arg(long)]
     searchstring: Option<String>,
-    
+
     #[arg(long)]
     tick: Option<u64>,
-    
+
     #[arg(long)]
     reg: bool,
-    
+
     #[arg(long)]
     addr: Option<u64>,
 }
@@ -64,32 +64,32 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     if let Some(searchstring) = args.searchstring {
-	let str_index_file = args.str_index.unwrap();
-	let str_index = get_string_index(str_index_file.clone().as_str()).unwrap();
-	let results = str_index.search(searchstring.as_bytes());
-	for r in results {
-	    println!("{:?}",r);
-	}
+        let str_index_file = args.str_index.unwrap();
+        let str_index = get_string_index(str_index_file.clone().as_str()).unwrap();
+        let results = str_index.search(searchstring.as_bytes());
+        for r in results {
+            println!("{:?}", r);
+        }
     }
 
-    
     if let Some(tick) = args.tick {
-	if let Some(addr) = args.addr {
-	    let st_index_file = args.st_index.unwrap();
-	    let (reg_index, mem_index) = get_st_index_spaces(&st_index_file.clone().as_str()).unwrap();
-	    if args.reg {
-		let results = reg_index.find(tick, addr, addr+1);
-		for r in results {
-		    println!("{:?}",r);
-		}
-	    } else  {
-		let results = mem_index.find(tick, addr, addr+1);
-		for r in results {
-		    println!("{:?}",r);
-		}
-	    }
-	}
+        if let Some(addr) = args.addr {
+            let st_index_file = args.st_index.unwrap();
+            let (reg_index, mem_index) =
+                get_st_index_spaces(&st_index_file.clone().as_str()).unwrap();
+            if args.reg {
+                let results = reg_index.find(tick, addr, addr + 1);
+                for r in results {
+                    println!("{:?}", r);
+                }
+            } else {
+                let results = mem_index.find(tick, addr, addr + 1);
+                for r in results {
+                    println!("{:?}", r);
+                }
+            }
+        }
     }
-    
+
     Ok(())
 }

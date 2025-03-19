@@ -1,4 +1,3 @@
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -38,7 +37,7 @@ pub struct WSegmentTree<T> {
 
     pub left: Option<Box<WSegmentTree<T>>>,
     pub right: Option<Box<WSegmentTree<T>>>,
-    
+
     pub elements: Vec<SegmentTreeEntry<T>>,
 }
 pub struct RSegmentTree<T> {
@@ -48,7 +47,7 @@ pub struct RSegmentTree<T> {
 
     pub left: Option<Box<RSegmentTree<T>>>,
     pub right: Option<Box<RSegmentTree<T>>>,
-    
+
     pub elements: Vec<SegmentTreeEntry<T>>,
 }
 
@@ -100,7 +99,7 @@ impl<T> RSegmentTree<T> {
             mid: 0,
             left: None,
             right: None,
-            elements: Vec::new()
+            elements: Vec::new(),
         }
     }
     pub fn new(mut branch: WSegmentTree<T>) -> Self {
@@ -116,13 +115,21 @@ impl<T> RSegmentTree<T> {
         }
     }
     pub fn extend_from_self(&self, start: u64, end: u64, results: &mut Vec<Arc<T>>) {
-        let start = self.elements.binary_search_by_key(&start, |elem| elem.sort_key);
-        let end = self.elements.binary_search_by_key(&end, |elem| elem.sort_key);
+        let start = self
+            .elements
+            .binary_search_by_key(&start, |elem| elem.sort_key);
+        let end = self
+            .elements
+            .binary_search_by_key(&end, |elem| elem.sort_key);
 
-        let start = match start { Ok(idx) | Err(idx) => idx };
-        let end = match end { Ok(idx) | Err(idx) => idx };
+        let start = match start {
+            Ok(idx) | Err(idx) => idx,
+        };
+        let end = match end {
+            Ok(idx) | Err(idx) => idx,
+        };
 
-        for i in &self.elements[start .. end] {
+        for i in &self.elements[start..end] {
             results.push(i.data.clone())
         }
     }
@@ -144,12 +151,16 @@ impl<T> RSegmentTree<T> {
     }
     pub fn retrieve_entries(&self, table: &mut BTreeMap<*const T, Arc<T>>) {
         for entry in &self.elements {
-            let addr : *const T = entry.data.as_ref();
+            let addr: *const T = entry.data.as_ref();
             if !table.contains_key(&addr) {
                 table.insert(addr, entry.data.clone());
             }
         }
-        if let Some(t) = self.left.as_ref() { t.retrieve_entries(table); }
-        if let Some(t) = self.right.as_ref() { t.retrieve_entries(table); }
+        if let Some(t) = self.left.as_ref() {
+            t.retrieve_entries(table);
+        }
+        if let Some(t) = self.right.as_ref() {
+            t.retrieve_entries(table);
+        }
     }
 }

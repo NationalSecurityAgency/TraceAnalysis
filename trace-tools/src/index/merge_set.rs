@@ -1,15 +1,14 @@
 use std::{any::Any, fmt::Debug};
 
-
 ///
-/// [OverlapComparable] defines a special sort of partial ordering wherein two objects have have 
-/// one "greater" or "less" than another, or they could be not exactly equal but not greater than 
+/// [OverlapComparable] defines a special sort of partial ordering wherein two objects have have
+/// one "greater" or "less" than another, or they could be not exactly equal but not greater than
 /// or less than each other, and in this third case, the two objects can be combined into one.
 /// This third case is referred to as "overlap".
-/// 
+///
 /// Standard associativity apply with [OverlapComparison::Less] and [OverlapComparison::Greater],
 /// but not with [OverlapComparison::Overlap].
-/// 
+///
 #[derive(PartialEq, Eq)]
 pub enum OverlapComparison {
     /// "A and B overlap" implies A and B are not equal but are also not greater than or less than
@@ -22,20 +21,20 @@ pub enum OverlapComparison {
 }
 
 ///
-/// [OverlapComparable] defines a special sort of partial ordering wherein two objects have have 
-/// one "greater" or "less" than another, or they could be not exactly equal but not greater than 
+/// [OverlapComparable] defines a special sort of partial ordering wherein two objects have have
+/// one "greater" or "less" than another, or they could be not exactly equal but not greater than
 /// or less than each other, and in this third case, the two objects can be combined into one.
 /// This third case is referred to as "overlap".
-/// 
+///
 /// Any type which implements [OverlapComparable] must have some concept of overlapping instances
 /// and must have a way to combine said instances.
-/// 
+///
 pub trait OverlapComparable: Sized {
     /// Compares [self] to another instance of this kind of [OverlapComparable], where
     /// returning [OverlapComparison::Less] implies [self] is less than `other`.
     fn cmp(&self, other: &Self) -> OverlapComparison;
     /// Combines [self] with a list of this kind of [OverlapComparable] which have been
-    /// determined to overlap [self]. Returns the result from the combination. 
+    /// determined to overlap [self]. Returns the result from the combination.
     fn combine(self, overlaps: Vec<Self>, combine_ctx: &mut dyn Any) -> Vec<Self>;
 }
 
@@ -47,45 +46,45 @@ where
     /// Non-optional option; exists so that I may .take() it.
     /// Contains the data associated with this AVL node.
     element: Option<T>,
-    /// 
+    ///
     /// The depth of either [Self::left] or [Self::right], whichever is greater.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// A [MergeSetNode] with no children on left or right would have a depth of 0.
-    /// 
+    ///
     /// A [MergeSetNode] with an empty left child but no right child would have a depth of 1.
-    /// 
+    ///
     /// A [MergeSetNode] with an empty left and right child would have a depth of 1.
-    /// 
+    ///
     child_depth: usize,
-    /// 
+    ///
     /// The difference in depth of between [Self::right] and [Self::left]. A positive [Self::skew]
-    /// indicates that the right child has a higher depth, and a negative [Self::skew] indicates 
+    /// indicates that the right child has a higher depth, and a negative [Self::skew] indicates
     /// that the left child has a higher depth.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// A [MergeSetNode] with no children on left or right would have a skew of 0.
-    /// 
+    ///
     /// A [MergeSetNode] with an empty left child but no right child would have a skew of -1.
-    /// 
+    ///
     /// A [MergeSetNode] with no left child but an empty right child would have a skew of 1.
-    /// 
+    ///
     /// A [MergeSetNode] with an empty left and right child would have a skew of 0.
-    /// 
+    ///
     skew: i32,
-    /// The left child (i.e. the child representing elements [OverlapComparison::Less] than 
+    /// The left child (i.e. the child representing elements [OverlapComparison::Less] than
     /// [Self::element]).
     left: Option<Box<MergeSetNode<T>>>,
-    /// The left child (i.e. the child representing elements [OverlapComparison::Greater] than 
+    /// The left child (i.e. the child representing elements [OverlapComparison::Greater] than
     /// [Self::element]).
     right: Option<Box<MergeSetNode<T>>>,
 }
 
 ///
 /// A user-friendly wrapper around [MergeSetNode]s, implementing standard AVL tree operations.
-/// 
+///
 pub struct MergeSet<T>
 where
     T: Sized + OverlapComparable + Debug,
@@ -108,12 +107,12 @@ where
             right: None,
         }
     }
-    
-    /// Rotates elements to the left around [self] ([self]'s right child becomes [self], and 
+
+    /// Rotates elements to the left around [self] ([self]'s right child becomes [self], and
     /// the old [self] becomes the new [self]'s left child)
     fn rotate_left(&mut self) {
         let old_right = self.right.take().unwrap();
-            
+
         let mut new_left = Box::new(Self::new(self.element.take().unwrap()));
         new_left.left = self.left.take();
         new_left.right = old_right.left;
@@ -126,27 +125,27 @@ where
         self.update();
     }
 
-    /// Rotates elements to the right around [self] ([self]'s left child becomes [self], and 
+    /// Rotates elements to the right around [self] ([self]'s left child becomes [self], and
     /// the old [self] becomes the new [self]'s right child)
     fn rotate_right(&mut self) {
         let old_left = self.left.take().unwrap();
-            
+
         let mut new_right = Box::new(Self::new(self.element.take().unwrap()));
         new_right.left = old_left.right;
         new_right.right = self.right.take();
         new_right.update();
-     
+
         self.right = Some(new_right);
         self.element = old_left.element;
         self.left = old_left.left;
-     
+
         self.update();
     }
 
-    /// Updates the [Self::child_depth] and [Self::skew] of [self], and if a rebalance is needed, 
-    /// performs the rebalance. 
-    /// 
-    /// This must *ONLY* be called after the [Self::left] and [Self::right] children have been 
+    /// Updates the [Self::child_depth] and [Self::skew] of [self], and if a rebalance is needed,
+    /// performs the rebalance.
+    ///
+    /// This must *ONLY* be called after the [Self::left] and [Self::right] children have been
     /// updated.
     fn update(&mut self) {
         let left_depth = self.left.as_ref().map_or(0, |c| c.child_depth);
@@ -191,15 +190,19 @@ where
             OverlapComparison::Overlap => {
                 let mut overlapping = vec![];
 
-                if self.left.as_mut()
-                    .map_or(false, |n| n.remove_overlapping(&elem, &mut overlapping)) 
+                if self
+                    .left
+                    .as_mut()
+                    .map_or(false, |n| n.remove_overlapping(&elem, &mut overlapping))
                 {
                     self.left = None;
                 }
 
                 overlapping.push(self.element.take().unwrap());
 
-                if self.right.as_mut()
+                if self
+                    .right
+                    .as_mut()
                     .map_or(false, |n| n.remove_overlapping(&elem, &mut overlapping))
                 {
                     self.right = None;
@@ -207,8 +210,11 @@ where
 
                 let mut replacements = elem.combine(overlapping, combine_ctx).into_iter();
 
-                self.element = Some(replacements.next().expect(
-                    "Combination must result in at least one element"));
+                self.element = Some(
+                    replacements
+                        .next()
+                        .expect("Combination must result in at least one element"),
+                );
                 self.update();
 
                 for elem in replacements {
@@ -298,7 +304,7 @@ where
                         let _ = std::mem::replace(self, *old_left);
                         false
                     }
-                    (false, false) => panic!("Mass removal invariants violated.")
+                    (false, false) => panic!("Mass removal invariants violated."),
                 }
             }
         }
