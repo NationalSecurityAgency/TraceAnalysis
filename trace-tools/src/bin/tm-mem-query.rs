@@ -4,9 +4,9 @@ use clap::Parser;
 use std::fs;
 
 use dataflow::prelude::SpaceKind;
-use trace::index::spacetime_index::SpacetimeRTree;
-use trace::index::string_index::StringIndex;
-use trace::index::Serializable;
+use trace_tools::index::spacetime_index::SpacetimeRTree;
+use trace_tools::index::string_index::StringIndex;
+use trace_tools::index::Serializable;
 
 /// Counts the type of each record in the trace.
 #[derive(Parser, Debug)]

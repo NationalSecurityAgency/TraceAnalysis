@@ -2156,54 +2156,54 @@ pub mod architecture {
 
     // NOTE: Below I import the Architecture enum from dataflow along with all of the
     // unit structs corresponding to each architecture supportd by dataflow.
-    use dataflow::architecture::*;
+    //use dataflow::architecture::*;
 
-    impl std::convert::TryInto<Architecture> for Arch {
-        type Error = Error;
+    //impl std::convert::TryInto<Architecture> for Arch {
+    //    type Error = Error;
 
-        fn try_into(self) -> Result<Architecture, Self::Error> {
-            let df_arch = match self {
-                Arch::X86 => Architecture::X86(X86),
-                Arch::X86_64 => Architecture::X86_64(X86_64),
-                Arch::X86_64Compat32 => Architecture::X86_64Compat32(X86_64Compat32),
-                Arch::PowerPc => Architecture::PPCBE32(PPCBE32),
-                // Arch::PowerPc64 => todo!(),
-                Arch::Arm => Architecture::ARM32(ARM32),
-                Arch::Arm64 => Architecture::AARCH64(AARCH64),
-                Arch::M68k => Architecture::M68K(M68K),
-                // Arch::Mips => todo!(),
-                // Arch::Mips64 => todo!(),
-                // Arch::Mipsel => todo!(),
-                // Arch::Mipsel64 => todo!(),
-                // Arch::Sparc => todo!(),
-                // Arch::Sparc64 => todo!(),
-                // Arch::RiscV => todo!(),
-                // Arch::RiscV64 => todo!(),
-                Arch::Unknown(num) => {
-                    return Err(Error::UnknownArch(num));
-                }
-                _ => {
-                    return Err(Error::NoDataflowArch(self));
-                }
-            };
+    //    fn try_into(self) -> Result<Architecture, Self::Error> {
+    //        let df_arch = match self {
+    //            Arch::X86 => Architecture::X86(X86),
+    //            Arch::X86_64 => Architecture::X86_64(X86_64),
+    //            Arch::X86_64Compat32 => Architecture::X86_64Compat32(X86_64Compat32),
+    //            Arch::PowerPc => Architecture::PPCBE32(PPCBE32),
+    //            // Arch::PowerPc64 => todo!(),
+    //            Arch::Arm => Architecture::ARM32(ARM32),
+    //            Arch::Arm64 => Architecture::AARCH64(AARCH64),
+    //            Arch::M68k => Architecture::M68K(M68K),
+    //            // Arch::Mips => todo!(),
+    //            // Arch::Mips64 => todo!(),
+    //            // Arch::Mipsel => todo!(),
+    //            // Arch::Mipsel64 => todo!(),
+    //            // Arch::Sparc => todo!(),
+    //            // Arch::Sparc64 => todo!(),
+    //            // Arch::RiscV => todo!(),
+    //            // Arch::RiscV64 => todo!(),
+    //            Arch::Unknown(num) => {
+    //                return Err(Error::UnknownArch(num));
+    //            }
+    //            _ => {
+    //                return Err(Error::NoDataflowArch(self));
+    //            }
+    //        };
 
-            Ok(df_arch)
-        }
-    }
+    //        Ok(df_arch)
+    //    }
+    //}
 
-    impl From<Architecture> for Arch {
-        fn from(value: Architecture) -> Self {
-            match value {
-                Architecture::X86(_) => Arch::X86,
-                Architecture::X86_64(_) => Arch::X86_64,
-                Architecture::X86_64Compat32(_) => Arch::X86_64Compat32,
-                Architecture::PPCBE32(_) => Arch::PowerPc,
-                Architecture::AARCH64(_) => Arch::Arm64,
-                Architecture::ARM32(_) => Arch::Arm,
-                Architecture::M68K(_) => Arch::M68k,
-                // TODO: docs
-                _ => unreachable!(),
-            }
-        }
-    }
+    //impl From<Architecture> for Arch {
+    //    fn from(value: Architecture) -> Self {
+    //        match value {
+    //            Architecture::X86(_) => Arch::X86,
+    //            Architecture::X86_64(_) => Arch::X86_64,
+    //            Architecture::X86_64Compat32(_) => Arch::X86_64Compat32,
+    //            Architecture::PPCBE32(_) => Arch::PowerPc,
+    //            Architecture::AARCH64(_) => Arch::Arm64,
+    //            Architecture::ARM32(_) => Arch::Arm,
+    //            Architecture::M68K(_) => Arch::M68k,
+    //            // TODO: docs
+    //            _ => unreachable!(),
+    //        }
+    //    }
+    //}
 }

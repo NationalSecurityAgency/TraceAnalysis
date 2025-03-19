@@ -26,7 +26,25 @@ pub fn analyze(input: Box<dyn Read>) -> Result<()> {
     };
 
     // Setup ghidra lifter for looking up native register names
-    let df_arch = arch.try_into()?;
+    let df_arch: Architecture = match arch {
+        trace::Arch::X86 => dataflow::architecture::X86.into(),
+        trace::Arch::X86_64 => dataflow::architecture::X86_64.into(),
+        trace::Arch::X86_64Compat32 => dataflow::architecture::X86_64Compat32.into(),
+        trace::Arch::PowerPc => dataflow::architecture::PPCBE32.into(),
+        trace::Arch::PowerPc64 => anyhow::bail!("dataflow does not currently support PPC64"),
+        trace::Arch::Arm => dataflow::architecture::ARM32.into(),
+        trace::Arch::Arm64 => dataflow::architecture::AARCH64.into(),
+        trace::Arch::M68k => dataflow::architecture::M68K.into(),
+        trace::Arch::Mips => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Mips64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Mipsel => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Mipsel64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Sparc => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Sparc64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::RiscV => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::RiscV64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Unknown(n) => anyhow::bail!("unknown architecture: {n}"),
+    };
     let ghidra_lifter = GhidraLifter::new(df_arch)?;
 
     // Initialize translation map

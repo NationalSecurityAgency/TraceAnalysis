@@ -1,8 +1,5 @@
 use hashbrown::HashMap;
-
-use crate::{
-    record::{Record},
-};
+use trace::record::Record;
 
 pub struct TraceCollector {
     pub reg_write_effects: HashMap<u32, Vec<u8>>,

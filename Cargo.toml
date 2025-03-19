@@ -13,6 +13,7 @@ members = [
     "dynamic-dataflow/plugins/syscalls",
     "dynamic-trace",
     "ghidra-lifter",
+    "trace-tools",
     "tracer-icicle",
     "tracer-panda",
     "tracer-qemu-user",

@@ -1,10 +1,7 @@
 use std::path::Path;
 use std::{fs, io};
 
-pub mod index;
-
 pub mod record;
-pub mod collector;
 
 // Expose record::Arch as a top level import
 pub use record::Arch;
@@ -228,10 +225,6 @@ pub mod reader {
     }
 }
 
-use dataflow::lifter::LiftError;
-
-use dataflow::error::DataflowError;
-
 // TODO: We may want to move runtime things to their own module
 #[derive(thiserror::Error, Debug)]
 pub enum RuntimeError {
@@ -258,10 +251,4 @@ pub enum RuntimeError {
 
     #[error("IO Error:")]
     Io(#[from] io::Error),
-
-    #[error("unable to lift assembly intruction")]
-    Lift(#[from] LiftError),
-
-    #[error("dataflow analysis failed")]
-    Dataflow(#[from] DataflowError),
 }

@@ -12,9 +12,9 @@ use trace::{
 };
 
 use dataflow::prelude::SpaceKind;
-use trace::index::spacetime_index::SpacetimeIndex;
-use trace::index::string_index::StringIndex;
-use trace::index::{Indexer, Operation};
+use trace_tools::index::spacetime_index::SpacetimeIndex;
+use trace_tools::index::string_index::StringIndex;
+use trace_tools::index::{Indexer, Operation};
 
 /// Counts the type of each record in the trace.
 #[derive(Parser, Debug)]

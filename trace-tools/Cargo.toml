@@ -1,0 +1,61 @@
+[package]
+name = "trace-tools"
+version = "0.1.0"
+edition.workspace = true
+
+[[bin]]
+name = "tm-analyze"
+
+[[bin]]
+name = "tm-analyze-modeling"
+
+[[bin]]
+name = "tm-count"
+
+[[bin]]
+name = "tm-split"
+
+[[bin]]
+name = "tm-print"
+
+[[bin]]
+name = "tm-truncate"
+
+[[bin]]
+name = "tm-filter-pc"
+
+[[bin]]
+name = "tm-filter-time"
+
+[[bin]]
+name = "tm-mem-query"
+
+[[bin]]
+name = "tm-mem-server"
+
+[[bin]]
+name = "tm-find-pc"
+
+[[bin]]
+name = "tm-ftrace"
+
+[[bin]]
+name = "tm-strace"
+
+[[bin]]
+name = "tm-index"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+dataflow.workspace = true
+hashbrown.workspace = true
+log = "0.4.20"
+memmap.workspace = true
+phf = { version = "0.11.2", features = ["macros"] }
+stderrlog = "0.5.4"
+thiserror.workspace = true
+goblin.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+trace.workspace = true

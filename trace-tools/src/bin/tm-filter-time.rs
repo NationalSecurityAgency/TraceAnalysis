@@ -8,7 +8,7 @@ use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::emit_le64;
 use trace::record::parse_unknown;
-use trace::collector;
+use trace_tools::collector;
 use trace::{
     record::{MemRead, MemWrite, Meta, ModelEffectsBegin, ModelEffectsEnd, Record, RegWrite},
     RuntimeError,

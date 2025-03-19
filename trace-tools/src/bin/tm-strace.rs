@@ -7,12 +7,12 @@ use std::ops::ControlFlow;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
 use trace::{
-    record::{Record},
+    record::Record,
     RuntimeError,
 };
 use dataflow::prelude::SpaceKind;
-use trace::index::spacetime_index::SpacetimeRTree;
-use trace::index::{SpacetimeBlock,Serializable};
+use trace_tools::index::spacetime_index::SpacetimeRTree;
+use trace_tools::index::{SpacetimeBlock,Serializable};
 
 
 /// Filters

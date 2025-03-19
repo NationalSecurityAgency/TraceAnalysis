@@ -65,7 +65,25 @@ fn main() -> Result<()> {
     let mut _ops = Vec::<Operation>::new();
 
     // Setup ghidra lifter to disasemble bytes
-    let df_arch: Architecture = arch.try_into()?;
+    let df_arch: Architecture = match arch {
+        trace::Arch::X86 => dataflow::architecture::X86.into(),
+        trace::Arch::X86_64 => dataflow::architecture::X86_64.into(),
+        trace::Arch::X86_64Compat32 => dataflow::architecture::X86_64Compat32.into(),
+        trace::Arch::PowerPc => dataflow::architecture::PPCBE32.into(),
+        trace::Arch::PowerPc64 => anyhow::bail!("dataflow does not currently support PPC64"),
+        trace::Arch::Arm => dataflow::architecture::ARM32.into(),
+        trace::Arch::Arm64 => dataflow::architecture::AARCH64.into(),
+        trace::Arch::M68k => dataflow::architecture::M68K.into(),
+        trace::Arch::Mips => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Mips64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Mipsel => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Mipsel64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Sparc => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Sparc64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::RiscV => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::RiscV64 => anyhow::bail!("dataflow does not currently support "),
+        trace::Arch::Unknown(n) => anyhow::bail!("unknown architecture: {n}"),
+    };
     let mut ghidra_lifter = GhidraLifter::new(df_arch)?;
 
     // Used for printing addresses nicely for each architecture
@@ -76,7 +94,7 @@ fn main() -> Result<()> {
     };
 
     trace
-        .for_each(|raw| {
+        .for_each(|raw: trace::RawRecord| -> ControlFlow<anyhow::Error> {
             // Pass trace bytes through to output
             try_cont!(output.write(raw.bytes()));
 
@@ -253,10 +271,10 @@ fn main() -> Result<()> {
                     ));
                 }
                 Record::Magic => {
-                    return ControlFlow::Break(RuntimeError::DuplicateMagic);
+                    return ControlFlow::Break(RuntimeError::DuplicateMagic.into());
                 }
                 Record::Arch(_) => {
-                    return ControlFlow::Break(RuntimeError::DuplicateArch);
+                    return ControlFlow::Break(RuntimeError::DuplicateArch.into());
                 }
                 _ => {
                     try_cont!(writeln!(stderr, "Unhandled Record: {record:?}"));
@@ -265,7 +283,7 @@ fn main() -> Result<()> {
 
             cont!();
         })
-        .map_or(Ok(()), |err| Err(err.into()))
+        .map_or(Ok(()), |err| Err(err))
 }
 
 fn open_input(input: &str) -> io::Result<Box<dyn Read>> {
