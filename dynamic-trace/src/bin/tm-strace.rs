@@ -12,7 +12,7 @@ use trace::{
 };
 use dataflow::prelude::SpaceKind;
 use trace::index::spacetime_index::SpacetimeRTree;
-use trace::index::Serializable;
+use trace::index::{SpacetimeBlock,Serializable};
 
 
 /// Filters
@@ -102,6 +102,46 @@ fn data_to_u64(data : Vec<u8>) -> u64 {
     u64::from_le_bytes(arr)
 }
 
+#[derive(Debug, Clone)]
+struct TimedByte {
+    val : Option<u8>,
+    time : Option<u64>,
+}
+
+fn coalesce(ops : Vec<&SpacetimeBlock>, addr : u64, len : usize) -> u64 {
+    let mut data : Vec<TimedByte> = vec![TimedByte{val: Some(0), time: None}; len];
+    for op in ops.iter() {
+	let mut i = 0;
+	for x in op.data.iter() {
+	    if op.address + i >= addr && op.address+i < addr+(len as u64) {
+		let offset = (op.address + i - addr) as usize;
+		let tb : &mut TimedByte = data.get_mut(offset).unwrap();
+		if let Some(t) = tb.time {
+		    if t < op.created_at {
+			tb.val = Some(*x);
+			tb.time = Some(op.created_at);
+		    }
+		} else {
+		    tb.val = Some(*x);
+		    tb.time = Some(op.created_at);
+		}
+	    }
+	    i += 1;
+	}
+    }
+    let mut ans = vec![0u8; len];
+    let mut max = 0;
+    for i in 0..len {
+	max = i;
+	if let Some(x) = data[i].val {
+	    ans[i] = x;
+	} else {
+	    break;//ans[i] = 0;//return None;
+	}
+    }
+    return data_to_u64(ans[0..max].to_vec());
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
     stderrlog::new().verbosity(args.verbose as usize).init()?;
@@ -124,7 +164,7 @@ fn main() -> Result<()> {
     
     let mut tick = 0 as u64;
 
-    let (mut reg_index, mut _mem_index) = get_st_index_spaces(&args.st_index.as_str()).unwrap();
+    let (reg_index, mut _mem_index) = get_st_index_spaces(&args.st_index.as_str()).unwrap();
     
     let spec = get_syscall_spec(args.spec)?;
     
@@ -139,14 +179,19 @@ fn main() -> Result<()> {
 	    if let Record::Instruction(ref ins) = record {
 		if spec.opcodes.iter().fold(false, |acc, opc| { acc || ins.insbytes() == opc }) {
 		    let args = spec.arg_regs.iter().map(|reg| {
-			reg_index.find(tick, *reg, *reg+spec.reg_width).iter().map(|block| {
-			    data_to_u64(block.as_ref().data.clone())
-			}).collect::<Vec<u64>>()
-		    }).collect::<Vec<Vec<u64>>>();
-		    if let Some(numblock) = reg_index.find(tick, spec.num_reg, spec.num_reg+spec.reg_width).first() {
-			let num = data_to_u64(numblock.as_ref().data.clone());
-			println!("SYSCALL {:?} ({:x?}) = ?", num, args)
+			coalesce(reg_index.find(tick-1, *reg, *reg+spec.reg_width).iter().map(|block| { block.as_ref() }).collect::<Vec<_>>(), *reg, spec.reg_width as usize)
+		    }).collect::<Vec<u64>>();
+		    let mut num : Option<u64> = None;
+		    let mut ret : Option<u64> = None;
+		    if let Some(numblock) = reg_index.find(tick-1, spec.num_reg, spec.num_reg+spec.reg_width).first() {
+			num = Some(data_to_u64(numblock.as_ref().data.clone()));
 		    }
+		    if let Some(retblock) = reg_index.find(tick+1, spec.ret_reg, spec.ret_reg+spec.reg_width).first() {
+			if retblock.created_at >= tick {
+			    ret = Some(data_to_u64(retblock.as_ref().data.clone()));
+			}
+		    }
+		    println!("{tick} SYSCALL_{}({args:x?}) = {ret:x?}", num.unwrap())
 		    //let num = data_to_u64(reg_index.find(tick, spec.num_reg, spec.num_reg+spec.reg_width).first().unwrap().as_ref().data.clone());
 		    //let retval = data_to_u64(reg_index.find(tick+1, spec.ret_reg, spec.ret_reg).first().unwrap().as_ref().data.clone());
 		    //println!("SYSCALL {:?} ({:x?}) = {:?}", num, args, retval)

@@ -59,11 +59,11 @@ struct IntervalFilter {
 }
 
 #[derive(Debug, Clone)]
-struct ModuleFilter {
-    start: Option<u64>,
-    end: Option<u64>,
-    name: String,
-    model: Option<String>,
+pub struct ModuleFilter {
+    pub start: Option<u64>,
+    pub end: Option<u64>,
+    pub name: String,
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,7 +81,7 @@ impl std::fmt::Display for ParseKeepRemoveError {
 }
 
 #[derive(Debug, Clone)]
-struct ParseRangeError;
+pub struct ParseRangeError;
 
 impl std::error::Error for ParseRangeError {}
 impl std::fmt::Display for ParseRangeError {
@@ -101,7 +101,7 @@ impl From<ParseIntError> for ParseIntervalError {
 }
 
 #[derive(Debug, Clone)]
-enum ParseIntervalError {
+pub enum ParseIntervalError {
     Range(ParseRangeError),
     Int(ParseIntError),
 }
@@ -181,7 +181,7 @@ impl FromStr for IntervalFilter {
 		if x > y {
 		    return Err(ParseIntervalError::Range(ParseRangeError {}));
 		}
-		Ok(IntervalFilter { start: x, end: y, model: model })
+		Ok(IntervalFilter { start: x, end: y, model })
 	    }
 	}
     }
@@ -215,8 +215,6 @@ fn main() -> Result<()> {
     };
     // TODO: Print trace architecture.
     output.write(raw.bytes())?;
-
-    let mut stderr = io::stderr();
 
     let mut was_emitting = true;
     let mut prev_model = None;

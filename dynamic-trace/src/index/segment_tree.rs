@@ -1,10 +1,10 @@
 
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct SegmentTreeEntry<T> {
     pub sort_key: u64,
-    pub data: Rc<T>,
+    pub data: Arc<T>,
 }
 impl<T> Clone for SegmentTreeEntry<T> {
     fn clone(&self) -> Self {
@@ -115,7 +115,7 @@ impl<T> RSegmentTree<T> {
             elements: branch.elements,
         }
     }
-    pub fn extend_from_self(&self, start: u64, end: u64, results: &mut Vec<Rc<T>>) {
+    pub fn extend_from_self(&self, start: u64, end: u64, results: &mut Vec<Arc<T>>) {
         let start = self.elements.binary_search_by_key(&start, |elem| elem.sort_key);
         let end = self.elements.binary_search_by_key(&end, |elem| elem.sort_key);
 
@@ -126,7 +126,7 @@ impl<T> RSegmentTree<T> {
             results.push(i.data.clone())
         }
     }
-    pub fn search(&self, time: u64, start: u64, end: u64, results: &mut Vec<Rc<T>>) {
+    pub fn search(&self, time: u64, start: u64, end: u64, results: &mut Vec<Arc<T>>) {
         self.extend_from_self(start, end, results);
 
         if self.min + 1 != self.max {
@@ -142,7 +142,7 @@ impl<T> RSegmentTree<T> {
             }
         }
     }
-    pub fn retrieve_entries(&self, table: &mut BTreeMap<*const T, Rc<T>>) {
+    pub fn retrieve_entries(&self, table: &mut BTreeMap<*const T, Arc<T>>) {
         for entry in &self.elements {
             let addr : *const T = entry.data.as_ref();
             if !table.contains_key(&addr) {

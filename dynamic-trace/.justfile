@@ -10,14 +10,18 @@ build:
     mkdir -p {{ build-dir }}/trace-management
     cp {{ project-root }}/target/release/tm-analyze {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-analyze-modeling {{ build-dir }}/trace-management/
-    cp {{ project-root }}/target/release/tm-print   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-count   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-split   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-print   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-truncate   {{ build-dir }}/trace-management/
-    cp {{ project-root }}/target/release/tm-index   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-filter-pc   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-filter-time   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-mem-query   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-mem-server   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-find-pc   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-ftrace   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-strace   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-index   {{ build-dir }}/trace-management/
 
 doc:
     #!/usr/bin/env bash

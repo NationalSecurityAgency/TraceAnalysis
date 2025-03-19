@@ -14,7 +14,7 @@ use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
 use trace::{
-    record::{Record},
+    record::Record,
     RuntimeError,
 };
 
@@ -44,10 +44,10 @@ struct Args {
 }
 
 #[derive(Debug, Deserialize)]
-struct MapEntry {
-    name : String,
-    low : Pc,
-    high : Pc,
+pub struct MapEntry {
+    pub name : String,
+    pub low : Pc,
+    pub high : Pc,
 }
 
 fn get_addr_table(mapfile : String, sysroot : String) -> Result<HashMap<u64, String>> {
@@ -97,8 +97,8 @@ fn parse_int(s: &str) -> std::result::Result<u64, std::num::ParseIntError> {
 }
 
 #[derive(Debug, Clone)]
-struct Pc {
-    pc: u64,
+pub struct Pc {
+    pub pc: u64,
 }
 
 impl<'de> Deserialize<'de> for Pc {

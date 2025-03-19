@@ -40,6 +40,10 @@ name = "tm-mem-query"
 required-features = ["dynamic-trace-bin"]
 
 [[bin]]
+name = "tm-mem-server"
+required-features = ["dynamic-trace-bin"]
+
+[[bin]]
 name = "tm-find-pc"
 required-features = ["dynamic-trace-bin"]
 

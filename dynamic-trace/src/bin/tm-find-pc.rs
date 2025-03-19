@@ -1,7 +1,6 @@
 use anyhow::{Error, Result};
 use clap::Parser;
 use goblin::elf;
-use hashbrown::HashMap;
 use serde::{Deserialize, Deserializer};
 use serde::de::Visitor;
 use std::fmt;
@@ -14,7 +13,7 @@ use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
 use trace::{
-    record::{Record},
+    record::Record,
     RuntimeError,
 };
 
@@ -61,45 +60,10 @@ struct Args {
 }
 
 #[derive(Debug, Deserialize)]
-struct MapEntry {
-    name : String,
-    low : Pc,
-    high : Pc,
-}
-
-fn get_addr_table(mapfile : String, sysroot : String) -> Result<HashMap<u64, String>> {
-    let mut ans = HashMap::new();
-
-    let mappath = Path::new(&mapfile);
-    let mapf = fs::File::open(mappath)?;
-    let mapreader = io::BufReader::new(mapf);
-    for mapline in mapreader.lines() {
-	if let Ok(mapline) = mapline {
-	    let mapentry = serde_json::from_str::<MapEntry>(&mapline);
-	    match mapentry {
-		Ok(mapentry) => {
-		    if let Ok(data) = fs::read(Path::new(&sysroot.as_str()).join(&mapentry.name.as_str()[1..])) {
-			let elf = elf::Elf::parse(&*data)?;
-			for d in elf.dynsyms.iter() {
-			    if let Some(x) = elf.dynstrtab.get_at(d.st_name) {
-				ans.insert(mapentry.low.pc + d.st_value, format!("{}.{}", mapentry.name, x));
-			    }
-			}
-			for d in elf.syms.iter() {
-			    if let Some(x) = elf.strtab.get_at(d.st_name) {
-				ans.insert(mapentry.low.pc + d.st_value, format!("{}.{}", mapentry.name, x));
-			    }
-			}
-		    }
-		}
-		Err(e) => {
-		    eprintln!("{}", e);
-		}
-	    }
-	}
-    }
-    Ok(ans)
-   
+pub struct MapEntry {
+    pub name : String,
+    pub low : Pc,
+    pub high : Pc,
 }
 
 fn get_addr(mapfile : String, sysroot : String, module : String, symbol : String) -> Option<Pc> {
@@ -155,8 +119,8 @@ fn parse_int(s: &str) -> std::result::Result<u64, std::num::ParseIntError> {
 }
 
 #[derive(Debug, Clone)]
-struct Pc {
-    pc: u64,
+pub struct Pc {
+    pub pc: u64,
 }
 
 impl<'de> Deserialize<'de> for Pc {

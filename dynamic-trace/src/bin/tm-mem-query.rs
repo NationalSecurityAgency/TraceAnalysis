@@ -76,7 +76,7 @@ fn main() -> Result<()> {
     if let Some(tick) = args.tick {
 	if let Some(addr) = args.addr {
 	    let st_index_file = args.st_index.unwrap();
-	    let (mut reg_index, mut mem_index) = get_st_index_spaces(&st_index_file.clone().as_str()).unwrap();
+	    let (reg_index, mem_index) = get_st_index_spaces(&st_index_file.clone().as_str()).unwrap();
 	    if args.reg {
 		let results = reg_index.find(tick, addr, addr+1);
 		for r in results {

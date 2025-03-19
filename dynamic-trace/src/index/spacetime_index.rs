@@ -42,7 +42,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::Result;
 use std::io::Write;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use dataflow::prelude::SpaceKind;
 use super::segment_tree::{SegmentTreeEntry, WSegmentTree, RSegmentTree};
@@ -82,7 +82,7 @@ impl SpacetimeWTree {
         let (creation, destruction) = (data.created_at, data.destroyed_at);
         let entry = SegmentTreeEntry {
             sort_key: data.address,
-            data: Rc::new(data),
+            data: Arc::new(data),
         };
 
         self.trunk.add_location(entry, creation, destruction);
@@ -96,10 +96,10 @@ impl SpacetimeWTree {
 }
 impl SpacetimeRTree {
     pub fn find(
-        &mut self,
+        &self,
         time: u64,
         addr_start: u64,
-        addr_end: u64) -> Vec<Rc<SpacetimeBlock>> 
+        addr_end: u64) -> Vec<Arc<SpacetimeBlock>> 
     {
         let mut results = Vec::new();
         self.trunk.search(time, addr_start, addr_end, &mut results);
@@ -184,7 +184,7 @@ impl Serializable for SpacetimeRTree {
         let block_map = (0 .. num_entries)
             .map(|n| {
                 let block = SpacetimeBlock::deserialize(bytes, start);
-                (n, SegmentTreeEntry { sort_key: block.address, data: Rc::new(block) })
+                (n, SegmentTreeEntry { sort_key: block.address, data: Arc::new(block) })
             })
             .collect::<BTreeMap<_, _>>();
 

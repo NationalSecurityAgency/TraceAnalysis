@@ -183,8 +183,6 @@ fn main() -> Result<()> {
     };
     output.write(raw.bytes())?;
 
-    let mut stderr = io::stderr();
-    
     let mut tick = 0 as u64;
 
     let mut was_emitting = true;
