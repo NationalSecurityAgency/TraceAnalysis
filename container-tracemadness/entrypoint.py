@@ -78,7 +78,7 @@ class TemporaryGhidraServer(object):
         ghidra_server_conf = ghidra_install_dir() / "server" / "server.conf"
         restore_conf = False
         self.tmpdir = TempDir()
-        repos = self.tmpdir.path / "repos"
+        repos = self.tmpdir.path / "repositories"
         try:
             repos.mkdir()
             shutil.copy2(str(ghidra_server_conf), str(self.tmpdir.path / "server.conf"))
