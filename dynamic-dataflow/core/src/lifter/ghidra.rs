@@ -33,7 +33,7 @@ impl GhidraLifter {
 
         for i in 0..lifter.numSpaces() {
             let Some(space) = (unsafe { lifter.getSpace(i).as_ref() }) else {
-                // TODO: Log this
+                tracing::warn!(space_id = i, "failed to get space from lifter");
                 continue;
             };
 

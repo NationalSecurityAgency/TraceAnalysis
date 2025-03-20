@@ -14,7 +14,7 @@ use crate::value::{Bool, PartialValue, Signed, SizedValue, Unsigned};
 use crate::Tick;
 
 use hashbrown::HashMap;
-use log::{trace, warn};
+use tracing::{trace, warn};
 
 trait LiftAndSpaceManager: crate::lifter::Lift + crate::space::SpaceManager {}
 impl<T> LiftAndSpaceManager for T where T: crate::lifter::Lift + crate::space::SpaceManager {}
@@ -154,6 +154,8 @@ impl Analysis {
     /// - Write unit tests
     ///
     pub fn process_instruction(&mut self, pc: u64, insbytes: &[u8]) -> Result<(), DataflowError> {
+        let _span = tracing::trace_span!("process_instruction", tick = self.tick).entered();
+
         let mut assembly = String::new();
 
         let tindex =
@@ -173,11 +175,12 @@ impl Analysis {
             }
 
             Err(_) => {
+                warn!("unable to get assembly for instruction");
                 assembly.push_str("BAD INSTRUCTION");
             }
         }
 
-        trace!("Tick: {} {:#x} {}", self.tick, pc, assembly);
+        trace!(pc = %crate::Hex(pc), bytes = %crate::Hex(insbytes), assembly = assembly);
 
         // Checks if there are any potential controlflows in this
         // instruction. Optimization: we use "rev" b/c it is most
@@ -187,7 +190,12 @@ impl Analysis {
         self.store.start_tick(self.tick, pc, assembly.clone());
 
         for (address, value) in self.oplog.reads() {
-            trace!("Read: {address:?} = {value}");
+            trace! {
+                space = address.space().id(),
+                offset = %crate::Hex(address.offset()),
+                value = %crate::Hex(value),
+                "processing read record",
+            };
         }
 
         let mut index = 0;
@@ -212,7 +220,6 @@ impl Analysis {
             } = output;
 
             if let Some(delta) = delta {
-                trace!("Delta: {}", delta);
                 #[cfg(feature = "plugins")]
                 for p in self.plugins.iter_mut() {
                     p.on_delta(
@@ -223,6 +230,36 @@ impl Analysis {
                         delta,
                     );
                 }
+
+                match &delta {
+                    Delta::Controlflow(slot, assc) => {
+                        trace! {
+                            kind = "controlflow",
+                            space = slot.space.id(),
+                            offset = %crate::Hex(slot.offset),
+                            size = slot.size,
+                            value = %PrettyPrintPartial(slot.value, slot.size as usize),
+                            assoc_space = assc.map(|v| v.space().id()),
+                            assoc_offset = %crate::Hex(assc.map(|v| v.offset())),
+                            assoc_size = assc.map(|v| v.size()),
+                            "generated delta",
+                        };
+                    }
+                    Delta::Dataflow(slot, assc) => {
+                        trace! {
+                            kind = "dataflow",
+                            space = slot.space.id(),
+                            offset = %crate::Hex(slot.offset),
+                            size = slot.size,
+                            value = %PrettyPrintPartial(slot.value, slot.size as usize),
+                            assoc_space = assc.map(|v| v.space().id()),
+                            assoc_offset = %crate::Hex(assc.map(|v| v.offset())),
+                            assoc_size = assc.map(|v| v.size()),
+                            "generated delta",
+                        };
+                    }
+                }
+
                 self.store
                     .insert_delta(self.tick, op.kind(), delta, deps.drain(..));
             }
@@ -270,7 +307,12 @@ impl Analysis {
         let mut writes = self.oplog.writes();
 
         while let Some((address, value)) = writes.next() {
-            trace!("Write: {address:?} = {value}");
+            trace! {
+                space = address.space().id(),
+                offset = %crate::Hex(address.offset()),
+                value = %crate::Hex(value),
+                "processing write record",
+            };
 
             // Template for psuedo-op if one needs to be added
             let opc = OperationKind::Unknown;
@@ -343,7 +385,11 @@ impl Analysis {
             // value, and blame the mistake on the last source of
             // uncertainty.
             if old != value {
-                warn!("Calculated value ({old:x?}) did not match write record ({value:x?})!");
+                warn! {
+                    calculated = old,
+                    recorded = value,
+                    "calculated value did not match write record"
+                };
                 delta.set_value(address, value);
                 self.store.blame_on_other(index);
             }
@@ -371,12 +417,14 @@ impl Analysis {
         N: AsRef<str>,
         I: IntoIterator<Item = Operation>,
     {
+        let _span = tracing::trace_span!("dummy_instruction", tick = self.tick).entered();
+
         let assembly = name.as_ref();
 
         self.operations.clear();
         self.operations.extend(ops);
 
-        trace!("Tick: {} {:#x} {}", self.tick, pc, assembly);
+        trace!(pc = %crate::Hex(pc), assembly = assembly);
 
         // Checks if there are any potential controlflows in this
         // instruction. Optimization: we use "rev" b/c it is most
@@ -386,7 +434,12 @@ impl Analysis {
         self.store.start_tick(self.tick, pc, assembly.to_owned());
 
         for (address, value) in self.oplog.reads() {
-            trace!("Read: {address:?} = {value}");
+            trace! {
+                space = address.space().id(),
+                offset = %crate::Hex(address.offset()),
+                value = %crate::Hex(value),
+                "processing read record",
+            };
         }
 
         let mut index = 0;
@@ -411,7 +464,6 @@ impl Analysis {
             } = output;
 
             if let Some(delta) = delta {
-                trace!("Delta: {}", delta);
                 #[cfg(feature = "plugins")]
                 for p in self.plugins.iter_mut() {
                     p.on_delta(
@@ -422,6 +474,36 @@ impl Analysis {
                         delta,
                     );
                 }
+
+                match &delta {
+                    Delta::Controlflow(slot, assc) => {
+                        trace! {
+                            kind = "controlflow",
+                            space = slot.space.id(),
+                            offset = %crate::Hex(slot.offset),
+                            size = slot.size,
+                            value = %PrettyPrintPartial(slot.value, slot.size as usize),
+                            assoc_space = assc.map(|v| v.space().id()),
+                            assoc_offset = %crate::Hex(assc.map(|v| v.offset())),
+                            assoc_size = assc.map(|v| v.size()),
+                            "generated delta",
+                        };
+                    }
+                    Delta::Dataflow(slot, assc) => {
+                        trace! {
+                            kind = "dataflow",
+                            space = slot.space.id(),
+                            offset = %crate::Hex(slot.offset),
+                            size = slot.size,
+                            value = %PrettyPrintPartial(slot.value, slot.size as usize),
+                            assoc_space = assc.map(|v| v.space().id()),
+                            assoc_offset = %crate::Hex(assc.map(|v| v.offset())),
+                            assoc_size = assc.map(|v| v.size()),
+                            "generated delta",
+                        };
+                    }
+                }
+
                 self.store
                     .insert_delta(self.tick, op.kind(), delta, deps.drain(..));
             }
@@ -471,7 +553,12 @@ impl Analysis {
         let mut writes = self.oplog.writes();
 
         while let Some((address, value)) = writes.next() {
-            trace!("Write: {address:?} = {value}");
+            trace! {
+                space = address.space().id(),
+                offset = %crate::Hex(address.offset()),
+                value = %crate::Hex(value),
+                "processing write record",
+            };
 
             // Template for psuedo-op if one needs to be added
             let opc = OperationKind::Unknown;
@@ -490,6 +577,11 @@ impl Analysis {
             let index = match self.store.last_modified(&address) {
                 Some(index) => *index,
                 None => {
+                    trace! {
+                        space = address.space().id(),
+                        offset = %crate::Hex(address.offset()),
+                        "address not found in last modified table"
+                    };
                     #[cfg(feature = "plugins")]
                     for p in self.plugins.iter_mut() {
                         p.on_delta(
@@ -516,6 +608,13 @@ impl Analysis {
             // If the last delta to touch this address did not occur during
             // this instruction, make a pseudo-op for the write
             if self.tick != tick {
+                trace! {
+                    space = address.space().id(),
+                    offset = %crate::Hex(address.offset()),
+                    last_modified_tick = tick,
+                    last_modified_index = index,
+                    "address found in last modified table"
+                };
                 #[cfg(feature = "plugins")]
                 for p in self.plugins.iter_mut() {
                     p.on_delta(
@@ -535,6 +634,13 @@ impl Analysis {
             let old = match delta.value_at(address) {
                 Some(old) => old,
                 None => {
+                    trace! {
+                        space = address.space().id(),
+                        offset = %crate::Hex(address.offset()),
+                        value = %crate::Hex(value),
+                        index = index,
+                        "backfilling missing value from recent delta with write record",
+                    }
                     delta.set_value(address, value);
                     continue;
                 }
@@ -544,7 +650,11 @@ impl Analysis {
             // value, and blame the mistake on the last source of
             // uncertainty.
             if old != value {
-                warn!("Calculated value did not match write record!");
+                warn! {
+                    calculated = old,
+                    recorded = value,
+                    "calculated value did not match write record"
+                };
                 delta.set_value(address, value);
                 self.store.blame_on_other(index);
             }
@@ -659,7 +769,9 @@ impl crate::lifter::Lift for Analysis {
         let tindex = self
             .store
             .lookup_tcache_or_else(pc, insbytes, |disasm, ops| {
-                self.lifter.lift_instruction(pc, insbytes, disasm, ops).map(|_| ())
+                self.lifter
+                    .lift_instruction(pc, insbytes, disasm, ops)
+                    .map(|_| ())
             })?;
 
         assembly.push_str(self.store.disassembly_for(tindex).unwrap());
@@ -804,7 +916,34 @@ impl Analysis {
     fn emulate(&self, op: &Operation, emu_out: &mut EmulatorOutput) {
         const MAX_PRIMITIVE: u64 = std::mem::size_of::<u128>() as u64;
 
-        trace!("Op: {op:?}");
+        trace! {
+            kind = ?op.kind(),
+            inputs = %PrettyPrintInputs(op.inputs()),
+            output = %PrettyPrintOutput(op.outputs()),
+            "emulating operation"
+        };
+
+        let pos = op.inputs().iter().chain(op.outputs().iter()).position(|addr| {
+            addr.size() > 32
+        });
+
+        if let Some(pos) = pos {
+            warn! {
+                argument_num = pos,
+                "argument is too large for partial value",
+            };
+            if let Some(oaddr) = op.outputs() {
+                emu_out.delta = Some(Delta::Dataflow(Slot::from(oaddr), None));
+
+                // TODO: this does not work if operation has variadic inputs
+                for (i, iaddr) in op.inputs().iter().copied().enumerate() {
+                    let input = Slot::from(iaddr);
+                    self.resolve_deps(&input, Some(i as u8), emu_out);
+                }
+            }
+            return;
+        }
+
         match op {
             Operation::Copy(op) => {
                 let out = op.output();
@@ -2362,5 +2501,80 @@ impl Analysis {
                 emu_out.side_effect = Some(SideEffect::Clear);
             }
         };
+    }
+}
+
+struct PrettyPrintPartial(PartialValue, usize);
+
+impl std::fmt::Display for PrettyPrintPartial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut f = f.debug_list();
+        for i in 0..self.1 {
+            match self.0.get(i) {
+                Some(&b) => {
+                    f.entry(&HEX_BYTES[b as usize]);
+                }
+                None => {
+                    f.entry(&UnknownByte);
+                }
+            }
+        }
+        f.finish()
+    }
+}
+
+struct UnknownByte;
+
+impl std::fmt::Debug for UnknownByte {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "??")
+    }
+}
+
+const fn generate_hex_bytes() -> [crate::Hex<u8>; 256] {
+    let mut arr = [crate::Hex(0); 256];
+    let mut i = 0;
+    while i < 256 {
+        arr[i] = crate::Hex(i as u8);
+        i += 1;
+    }
+    arr
+}
+
+static HEX_BYTES: [crate::Hex<u8>; 256] = generate_hex_bytes();
+
+struct PrettyPrintInputs<'a>(&'a [AddressRange]);
+
+impl std::fmt::Display for PrettyPrintInputs<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+        for (i, address) in self.0.iter().enumerate() {
+            write! {
+                f,
+                "{}({}, {}, {})",
+                if i == 0 { "" } else { ", " },
+                address.space().id(),
+                crate::Hex(address.offset()),
+                address.size(),
+            }?;
+        }
+        write!(f, "]")
+    }
+}
+
+struct PrettyPrintOutput(Option<AddressRange>);
+
+impl std::fmt::Display for PrettyPrintOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(address) => write!(
+                f,
+                "Some(({}, {}, {}))",
+                address.space().id(),
+                crate::Hex(address.offset()),
+                address.size()
+            ),
+            None => write!(f, "None"),
+        }
     }
 }

@@ -171,7 +171,11 @@ async fn export_thread(
                             8 => delta.value.as_u64(),
                             /*16 => delta.value.as_u64(),*/
                             _ => {
-                                log::warn!("Unable to cast value of size {:?} to concrete value at tick {:?}", delta.size, tick);
+                                tracing::warn!(
+                                    size = delta.size,
+                                    tick = tick,
+                                    "unable to cast value to concrete value"
+                                );
                                 None
                             }
                         };
@@ -312,7 +316,7 @@ async fn export_thread(
                         8 => partial.as_u64(),
                         16 => partial.as_u64(),
                         _ => {
-                            log::warn!("Unable to cast value of size {size:?} to concrete value");
+                            tracing::warn!(size = size, "unable to cast value to concrete value");
                             None
                         }
                     };
@@ -384,7 +388,10 @@ async fn export_thread(
                         8 => partial.as_u64(),
                         16 => partial.as_u64(),
                         _ => {
-                            log::warn!("Unable to cast value of size {size:?} to concrete value");
+                            tracing::warn!(
+                                size = size,
+                                "unable to cast value of to concrete value"
+                            );
                             None
                         }
                     };

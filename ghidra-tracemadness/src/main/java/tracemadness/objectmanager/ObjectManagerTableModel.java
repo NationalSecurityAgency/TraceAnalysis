@@ -16,7 +16,7 @@ import ghidra.util.task.TaskMonitor;
 import tracemadness.MadnessPlugin;
 import tracemadness.objectdata.ObjectInfo;
 import tracemadness.objectdata.ObjectPhase;
-import tracemadness.tabularprovider.View;
+import tracemadness.View;
 
 @SuppressWarnings("serial")
 public class ObjectManagerTableModel extends ThreadedTableModel<ObjectInfo, MadnessPlugin> {

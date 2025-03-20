@@ -6,4 +6,4 @@ edition.workspace = true
 
 [dependencies]
 dataflow-core = { workspace = true, features = [ "plugins" ] }
-log = "0.4"
+tracing.workspace = true

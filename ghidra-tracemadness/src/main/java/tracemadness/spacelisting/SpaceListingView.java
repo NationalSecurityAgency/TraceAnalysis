@@ -3,7 +3,7 @@ package tracemadness.spacelisting;
 import java.util.HashMap;
 import java.util.Map;
 
-import tracemadness.tabularprovider.View;
+import tracemadness.View;
 
 public class SpaceListingView implements View {
 

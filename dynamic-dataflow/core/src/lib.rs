@@ -68,3 +68,41 @@ pub mod prelude {
 
     pub use super::space::{Space, SpaceAttributes, SpaceIndex, SpaceKind, SpaceManager};
 }
+
+#[derive(Copy, Clone)]
+pub(crate) struct Hex<T>(pub(crate) T);
+
+impl std::fmt::Display for Hex<Option<u64>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(v) => write!(f, "Some({})", Hex(v)),
+            None => write!(f, "None"),
+        }
+    }
+}
+
+impl std::fmt::Display for Hex<u64> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#018x}", self.0)
+    }
+}
+
+impl std::fmt::Display for Hex<u8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#04x}", self.0)
+    }
+}
+
+impl std::fmt::Debug for Hex<u8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#04x}", self.0)
+    }
+}
+
+impl std::fmt::Display for Hex<&[u8]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list()
+            .entries(self.0.iter().copied().map(Hex))
+            .finish()
+    }
+}

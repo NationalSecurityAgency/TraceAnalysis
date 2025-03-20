@@ -135,10 +135,12 @@ impl DataflowPlugin for LinuxSyscallsx64 {
         op: Operation,
         output: &mut EmulatorOutput,
     ) {
+        let _span =
+            tracing::trace_span!("on_operation", index = store.instruction_index()).entered();
         if !self.is_syscall(&op) {
             return;
         }
-        //log::debug!("[Syscalls] Detected syscall");
+        tracing::trace!("detected syscall");
 
         // No matter what syscall is performed, RAX will hold the return value
         output.delta = Some(Delta::Dataflow(Slot::from(self.syscall_ret()), None));
@@ -146,12 +148,12 @@ impl DataflowPlugin for LinuxSyscallsx64 {
         let mut input0 = Slot::from(self.syscall_num());
         Self::resolve_input(store, &mut input0);
         let Some(sysno) = input0.value.as_u32() else {
-            //log::warn!("[Syscalls] Could not determine syscall number, skipping.");
+            tracing::warn!("could not determine syscall number, skipping...");
             return;
         };
         match sysno {
             0 | 17 => {
-                //log::debug!("[Syscalls] SYS_(P)READ(64)");
+                tracing::trace!(sysno = sysno, "SYS_(P)READ(64)");
                 let mut base = Slot::from(self.syscall_arg1());
                 let mut size = Slot::from(self.syscall_arg2());
 
@@ -159,40 +161,50 @@ impl DataflowPlugin for LinuxSyscallsx64 {
                 Self::resolve_input(store, &mut size);
 
                 let Some(base) = base.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve base address in SYS_(P)READ(64).");
+                    tracing::warn!(sysno = sysno, "unable to resolve base address");
                     return;
                 };
 
                 let Some(size) = size.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve size in SYS_(P)READ(64).");
+                    tracing::warn!(sysno = sysno, "unable to resolve size");
                     return;
                 };
 
                 let range = self.memory(base, size);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             4 | 5 | 6 => {
-                //log::debug!("[Syscalls] SYS_(F/L)STAT");
+                tracing::trace!(sysno = sysno, "SYS_(F/L)STAT");
                 let mut base = Slot::from(self.syscall_arg1());
                 Self::resolve_input(store, &mut base);
                 let Some(base) = base.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve address of struct in SYS_(F/L)STAT.");
+                    tracing::warn!(sysno = sysno, "unable to resolve address of struct");
                     return;
                 };
 
                 let range = self.memory(base, Self::STAT_SIZE);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             13 => {
-                //log::debug!("[Syscalls] SYS_RT_SIGACTION");
+                tracing::trace!(sysno = sysno, "SYS_RT_SIGACTION");
                 let mut base = Slot::from(self.syscall_arg2());
                 Self::resolve_input(store, &mut base);
                 let Some(base) = base.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve address of struct in SYS_RT_SIGACTION.");
+                    tracing::warn!(sysno = sysno, "unable to resolve address of struct");
                     return;
                 };
 
@@ -201,16 +213,21 @@ impl DataflowPlugin for LinuxSyscallsx64 {
                 }
 
                 let range = self.memory(base, Self::SIGACTION_SIZE);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             14 => {
-                //log::debug!("[Syscalls] SYS_RT_SIGPROCMASK");
+                tracing::trace!(sysno = sysno, "SYS_RT_SIGPROCMASK");
                 let mut base = Slot::from(self.syscall_arg2());
                 Self::resolve_input(store, &mut base);
                 let Some(base) = base.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve address of struct in SYS_RT_SIGPROCMASK.");
+                    tracing::warn!(sysno = sysno, "unable to resolve address of struct");
                     return;
                 };
 
@@ -219,26 +236,36 @@ impl DataflowPlugin for LinuxSyscallsx64 {
                 }
 
                 let range = self.memory(base, Self::SIGSET_SIZE);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             137 => {
-                //log::debug!("[Syscalls] SYS_STATFS");
+                tracing::trace!(sysno = sysno, "SYS_STATFS");
                 let mut base = Slot::from(self.syscall_arg1());
                 Self::resolve_input(store, &mut base);
                 let Some(base) = base.value.as_u64() else {
-                    //log::debug!("[Syscalls] Unable to resolve address of struct in SYS_STATFS.");
+                    tracing::warn!(sysno = sysno, "unable to resolve address of struct");
                     return;
                 };
 
                 let range = self.memory(base, Self::STATFS_SIZE);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             217 => {
-                //log::debug!("[Syscalls] SYS_GETDENTS64");
+                tracing::trace!(sysno = sysno, "SYS_GETDENTS64");
                 let mut base = Slot::from(self.syscall_arg1());
                 let mut size = Slot::from(self.syscall_arg2());
 
@@ -246,26 +273,31 @@ impl DataflowPlugin for LinuxSyscallsx64 {
                 Self::resolve_input(store, &mut size);
 
                 let Some(base) = base.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve base address in SYS_GETDENTS64.");
+                    tracing::warn!(sysno = sysno, "unable to resolve base address");
                     return;
                 };
 
                 let Some(size) = size.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve size in SYS_GETDENTS64.");
+                    tracing::warn!(sysno = sysno, "unable to resolve size");
                     return;
                 };
 
                 let range = self.memory(base, size);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             302 => {
-                //log::debug!("[Syscalls] SYS_PRLIMIT64");
+                tracing::trace!(sysno = sysno, "SYS_PRLIMIT64");
                 let mut base = Slot::from(self.syscall_arg3());
                 Self::resolve_input(store, &mut base);
                 let Some(base) = base.value.as_u64() else {
-                    //log::warn!("[Syscalls] Unable to resolve address of struct in SYS_PRLIMIT64");
+                    tracing::warn!(sysno = sysno, "unable to resolve address of struct");
                     return;
                 };
 
@@ -274,13 +306,26 @@ impl DataflowPlugin for LinuxSyscallsx64 {
                 }
 
                 let range = self.memory(base, Self::RLIMIT_SIZE);
-                log::trace!("[Syscalls] Clearing dataflow in range {range:x?}");
+                tracing::trace! {
+                    space = range.space().id(),
+                    offset = %Hex(range.offset()),
+                    size = range.size(),
+                    "clearing dataflow"
+                };
                 output.clear_ranges.push(range);
             }
 
             _ => {
-                //log::trace!("[Syscalls] Unhandled syscall {sysno:?}");
+                tracing::trace!(sysno = sysno, "unhandled syscall")
             }
         }
+    }
+}
+
+struct Hex<T>(T);
+
+impl std::fmt::Display for Hex<u64> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#018x}", self.0)
     }
 }

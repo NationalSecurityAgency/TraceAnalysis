@@ -36,7 +36,7 @@ import resources.Icons;
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.tabularprovider.View;
+import tracemadness.View;
 import tracemadness.dataflowinfo.DataflowAccess;
 import tracemadness.dataflowinfo.DataflowObject;
 

@@ -72,7 +72,7 @@ import tracemadness.calltree.CallTreeProvider;
 @PluginInfo(
 		status = PluginStatus.UNSTABLE,
 		packageName = MiscellaneousPluginPackage.NAME,
-		category = PluginCategoryNames.MISC,
+		category = PluginCategoryNames.CODE_VIEWER,
 		shortDescription = "a DataFlow helper",
 		description = "TraceMadness allows you to explore program execution inside the Ghidra framework from recorded traces using Dataflow databases."
 		)

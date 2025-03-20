@@ -47,6 +47,7 @@ fn main() {
     println!("cargo:rustc-link-lib=stdc++");
     println!("cargo:rustc-link-lib=m");
     println!("cargo:rustc-link-lib=bfd");
+    println!("cargo:rustc-link-lib=z");
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=src/lifter.cc");
     println!("cargo:rerun-if-changed=include/lifter.h");
