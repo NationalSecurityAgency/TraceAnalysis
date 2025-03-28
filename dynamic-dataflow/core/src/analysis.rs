@@ -923,9 +923,11 @@ impl Analysis {
             "emulating operation"
         };
 
-        let pos = op.inputs().iter().chain(op.outputs().iter()).position(|addr| {
-            addr.size() > 32
-        });
+        let pos = op
+            .inputs()
+            .iter()
+            .chain(op.outputs().iter())
+            .position(|addr| addr.size() > 32);
 
         if let Some(pos) = pos {
             warn! {
