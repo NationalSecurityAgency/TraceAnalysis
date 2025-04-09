@@ -57,11 +57,11 @@ import ghidra.util.data.DataTypeParser.AllowedDataTypes;
 import tracemadness.objectdata.ObjectCache;
 import tracemadness.objectmanager.ObjectManagerProvider;
 import tracemadness.settings.Setting;
-import tracemadness.spacelisting.SpaceListingProvider;
 import tracemadness.timelisting.TimeListingProvider;
 import tracemadness.modulemap.ModuleInfo;
 import tracemadness.modulemap.ModuleMap;
 import tracemadness.modulemap.ModuleMapProvider;
+import tracemadness.accesslisting.AccessListingProvider;
 import tracemadness.accessmap.AccessMapProvider;
 import tracemadness.calltree.CallTreeProvider;
 
@@ -83,7 +83,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 
 	public TimeListingProvider timeListingProvider;
 	public AccessMapProvider accessMapProvider;
-	public SpaceListingProvider spaceListingProvider;
+	public AccessListingProvider spaceListingProvider;
 	public ObjectManagerProvider objectManagerProvider;
 	public ModuleMapProvider moduleMapProvider;
 

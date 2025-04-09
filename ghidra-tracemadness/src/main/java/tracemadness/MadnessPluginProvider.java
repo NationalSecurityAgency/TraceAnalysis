@@ -39,13 +39,13 @@ import ghidra.program.model.data.LongLongDataType;
 import ghidra.program.model.data.ShortDataType;
 import ghidra.program.model.data.StructureDataType;
 import resources.Icons;
+import tracemadness.accesslisting.AccessListingProvider;
 import tracemadness.accessmap.AccessMapProvider;
 import tracemadness.calltree.CallTreeProvider;
 import tracemadness.modulemap.ModuleMapProvider;
 import tracemadness.objectmanager.ObjectManagerProvider;
 import tracemadness.settings.Setting;
 import tracemadness.settings.SettingsProvider;
-import tracemadness.spacelisting.SpaceListingProvider;
 import tracemadness.timelisting.TimeListingProvider;
 
 public class MadnessPluginProvider extends ComponentProvider {
@@ -181,7 +181,7 @@ public class MadnessPluginProvider extends ComponentProvider {
 	public final AbstractAction SPACE_LISTING_BUTTON = new AbstractAction("Space Listing") {
 		public void actionPerformed(ActionEvent ev) {
 			if (plugin.spaceListingProvider == null) {
-				plugin.spaceListingProvider = new SpaceListingProvider(plugin, "Space Listing");
+				plugin.spaceListingProvider = new AccessListingProvider(plugin, "Space Listing");
 				plugin.spaceListingProvider.addToTool();
 			}
 			plugin.spaceListingProvider.setVisible(true);

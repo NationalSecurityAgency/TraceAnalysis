@@ -38,13 +38,13 @@ import ghidra.util.Swing;
 import resources.Icons;
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
+import tracemadness.accesslisting.AccessListingView;
 import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.listingfield.SpacetimePCField;
 import tracemadness.listingfield.SpacetimeTickField;
 import tracemadness.objectdata.ObjectInfo;
 import tracemadness.objectdata.ObjectPhase;
 import tracemadness.slicelisting.SliceListingProvider;
-import tracemadness.spacelisting.SpaceListingView;
 import docking.ActionContext;
 import docking.ComponentProvider;
 import docking.action.ActionContextProvider;
@@ -1476,7 +1476,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			params.put(TimeListingView.VIEW_PARAM.TIME_START.name(), tick);
 			params.put(TimeListingView.VIEW_PARAM.DEPTH.name(), 10L);
 			this.provider.plugin.spaceListingProvider
-					.newView(new SpaceListingView(SpaceListingView.VIEW_TYPE.FUNCTION_RUN_VIEW.name(), params));
+					.newView(new AccessListingView(AccessListingView.VIEW_TYPE.FUNCTION_RUN_VIEW.name(), params));
 		}
 	}
 
