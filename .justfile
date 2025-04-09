@@ -24,6 +24,7 @@ build-all:
     {{ just }} build-dir={{ build-dir }} ghidra-lifter/build
     {{ just }} build-dir={{ build-dir }} ghidra-tracemadness/build
     {{ just }} build-dir={{ build-dir }} strace-spark/build
+    {{ just }} build-dir={{ build-dir }} trace-tools/build
     {{ just }} build-dir={{ build-dir }} tracer-icicle/build
     {{ just }} build-dir={{ build-dir }} tracer-panda/build
     {{ just }} build-dir={{ build-dir }} tracer-pin/build
@@ -46,6 +47,7 @@ doc-all:
     {{ just }} ghidra-lifter/doc
     {{ just }} ghidra-tracemadness/doc
     {{ just }} strace-spark/doc
+    {{ just }} tracer-tools/doc
     {{ just }} tracer-icicle/doc
     {{ just }} tracer-panda/doc
     {{ just }} tracer-pin/doc
@@ -69,6 +71,7 @@ test-all:
     {{ just }} ghidra-lifter/test
     {{ just }} ghidra-tracemadness/test
     {{ just }} strace-spark/test
+    {{ just }} tracer-tools/test
     {{ just }} tracer-icicle/test
     {{ just }} tracer-panda/test
     {{ just }} tracer-pin/test
@@ -92,6 +95,7 @@ install-all:
     {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} ghidra-lifter/install
     {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} ghidra-tracemadness/install
     {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} strace-spark/install
+    {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} trace-tools/install
     {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} tracer-icicle/install
     {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} tracer-panda/install
     {{ just }} build-dir={{ build-dir }} install-root={{ install-root }} install-prefix={{ install-prefix }} tracer-pin/install
@@ -114,6 +118,7 @@ clean-all:
     {{ just }} build-dir={{ build-dir }} ghidra-lifter/clean
     {{ just }} build-dir={{ build-dir }} ghidra-tracemadness/clean
     {{ just }} build-dir={{ build-dir }} strace-spark/clean
+    {{ just }} build-dir={{ build-dir }} trace-tools/clean
     {{ just }} build-dir={{ build-dir }} tracer-icicle/clean
     {{ just }} build-dir={{ build-dir }} tracer-panda/clean
     {{ just }} build-dir={{ build-dir }} tracer-pin/clean

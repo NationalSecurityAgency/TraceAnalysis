@@ -580,6 +580,10 @@ impl<'d> UnknownFileMeta<'d> {
 /// - 7 = [`AddressDependencyEdge`]
 /// - 8 = [`RegisterDependencyEdge`]
 /// - 9 = [`MemoryAllocated`]
+/// - 10 = [`MemoryFreed`]
+/// - 11 = [`MemoryReallocated`]
+/// - 12 = [`ModelEffectsBegin`]
+/// - 13 = [`ModelEffectsEnd`]
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Meta<'d> {
@@ -589,6 +593,8 @@ pub enum Meta<'d> {
     CallBegin(CallBegin),
     CallModeledOpsEnd(CallModeledOpsEnd),
     CallEnd(CallEnd),
+    ModelEffectsBegin(ModelEffectsBegin),
+    ModelEffectsEnd(ModelEffectsEnd),
     OperandUncertain(OperandUncertain),
     AddressDependencyEdge(AddressDependencyEdge),
     RegisterDependencyEdge(RegisterDependencyEdge),
@@ -664,6 +670,16 @@ impl<'d> Meta<'d> {
                     .map_err(|e| Error::wrap("metamemoryreallocated", e))?;
                 Ok(Self::MemoryReallocated(record))
             }
+            12 => {
+                let record = ModelEffectsBegin::parse(contents)
+                    .map_err(|e| Error::wrap("metamodeleffectsbegin", e))?;
+                Ok(Self::ModelEffectsBegin(record))
+            }
+            13 => {
+                let record = ModelEffectsEnd::parse(contents)
+                    .map_err(|e| Error::wrap("metamodeleffectsend", e))?;
+                Ok(Self::ModelEffectsEnd(record))
+            }
             n => Ok(Self::Unknown(UnknownMeta {
                 tag: n,
                 contents: Cow::from(contents),
@@ -677,6 +693,8 @@ impl<'d> Meta<'d> {
             Self::ThreadId(record) => record.emit(buffer),
             Self::ProcessId(record) => record.emit(buffer),
             Self::CallBegin(record) => record.emit(buffer),
+            Self::ModelEffectsBegin(record) => record.emit(buffer),
+            Self::ModelEffectsEnd(record) => record.emit(buffer),
             Self::CallModeledOpsEnd(record) => record.emit(buffer),
             Self::CallEnd(record) => record.emit(buffer),
             Self::OperandUncertain(record) => record.emit(buffer),
@@ -798,6 +816,91 @@ impl ProcessId {
     }
 }
 
+/// Record indicating that following records prior to the next
+/// ModelEffectsEnd meta record are effects modelled by the named
+/// model
+///
+/// # Format
+///
+/// `| model_name: String |`
+///
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ModelEffectsBegin {
+    model_name: String,
+}
+
+impl ModelEffectsBegin {
+    /// Constructs a record that indicates a call to a function
+    pub fn new(model_name: String) -> Self {
+        Self { model_name }
+    }
+
+    /// Returns the callee function's name.
+    pub fn name(&self) -> &str {
+        &self.model_name
+    }
+
+    fn parse(bytes: &[u8]) -> Result<Self, ParseError> {
+        let len: usize = bytes[..MAX_MODEL_NAME_LEN]
+            .iter()
+            .position(|c| *c == 0)
+            .unwrap_or(MAX_MODEL_NAME_LEN);
+
+        let name = String::from_utf8(bytes[..len].to_vec())
+            .map_err(|_| Error::record("Could not read model name", Error::BadData))?;
+        Ok(Self { model_name: name })
+    }
+
+    fn emit(&self, buffer: &mut Vec<u8>) {
+        let mut bytes = [
+            // (0b001100, 0b01): (Meta, length is 1 byte long)
+            0x31u8, // 0x22 bytes follow; 0x20 byte model name, 2 metadata
+            0x22,   // vlen
+            0x0c,   // ModelEffectsBegin tag
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, // 0x20 bytes (MAX_MODEL_NAME_LEN) for model name
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x23, // rlen
+        ];
+        let name = self.model_name.clone().into_bytes();
+        let copy_len = name.len().min(MAX_MODEL_NAME_LEN);
+        bytes[3..(3 + copy_len)].copy_from_slice(&name[..copy_len]);
+        buffer.extend_from_slice(&bytes)
+    }
+}
+
+/// Record indicating that following records prior to the next
+/// ModelEffectsEnd meta record are effects modelled by the named
+/// model
+///
+/// # Format
+///
+/// `| model_name: String |`
+///
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ModelEffectsEnd;
+
+impl ModelEffectsEnd {
+    /// Constructs a record that indicates a call to a function
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    fn parse(_bytes: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self)
+    }
+
+    fn emit(&self, buffer: &mut Vec<u8>) {
+        let bytes = [
+            // (0b001100, 0b01): (Meta, length is 1 byte long)
+            0x31u8, 0x2,  // vlen
+            0x0d, // ModelEffectsEnd tag
+            0x3,  // rlen
+        ];
+        buffer.extend_from_slice(&bytes)
+    }
+}
+
 /// Record indicating that following records prior to the next CallEnd meta
 /// record are modeled inputs and outputs of a function call.
 ///
@@ -812,13 +915,14 @@ pub struct CallBegin {
 }
 
 const MAX_FN_NAME_LEN: usize = 0x20;
+const MAX_MODEL_NAME_LEN: usize = 0x20;
 
 impl CallBegin {
     /// Constructs a record that indicates a call to a function
     pub fn new(function_name: String, address: u64) -> Self {
         Self {
-            function_name: function_name,
-            address: address,
+            function_name,
+            address,
         }
     }
 
@@ -843,7 +947,7 @@ impl CallBegin {
         let (address, _) = parse_le64(&bytes[MAX_FN_NAME_LEN..])?;
         Ok(Self {
             function_name: name,
-            address: address,
+            address,
         })
     }
 
@@ -1083,10 +1187,7 @@ pub struct MemoryAllocated {
 impl MemoryAllocated {
     /// Constructs a record that indicates memory at the specified address was freed.
     pub fn new(address: u64, size: u32) -> Self {
-        Self {
-            address: address,
-            size: size,
-        }
+        Self { address, size }
     }
 
     pub fn address(&self) -> u64 {
@@ -1134,10 +1235,7 @@ pub struct MemoryFreed {
 impl MemoryFreed {
     /// Constructs a record that indicates memory was allocated at the specified address.
     pub fn new(address: u64, size: u32) -> Self {
-        Self {
-            address: address,
-            size: size,
-        }
+        Self { address, size }
     }
 
     pub fn address(&self) -> u64 {
@@ -1187,9 +1285,9 @@ impl MemoryReallocated {
     /// Constructs a record that indicates memory was reallocated.
     pub fn new(new_address: u64, old_address: u64, size: u32) -> Self {
         Self {
-            new_address: new_address,
-            old_address: old_address,
-            size: size,
+            new_address,
+            old_address,
+            size,
         }
     }
 
@@ -2051,58 +2149,82 @@ pub mod architecture {
             Record::parse(raw, varfmt)
                 .map_err(move |e| Error::ParseRecord(e.to_string(), Box::new(Error::NoData)))
         }
+
+        pub fn emit_record(&self, record: Record, buffer: &mut Vec<u8>) -> Result<(), Error> {
+            let varfmt = match self {
+                Self::X86 => super::emit_le32,
+                Self::X86_64 => super::emit_le64,
+                Self::X86_64Compat32 => super::emit_le64,
+                Self::PowerPc => super::emit_be32,
+                Self::PowerPc64 => super::emit_be64,
+                Self::Arm => super::emit_be32,
+                Self::Arm64 => super::emit_be64,
+                Self::M68k => super::emit_be32,
+                Self::Mips => super::emit_be32,
+                Self::Mips64 => super::emit_be64,
+                Self::Mipsel => super::emit_le32,
+                Self::Mipsel64 => super::emit_le64,
+                Self::Sparc => super::emit_be32,
+                Self::Sparc64 => super::emit_be64,
+                Self::RiscV => super::emit_le32,
+                Self::RiscV64 => super::emit_le64,
+                Self::Unknown(n) => return Err(Error::UnknownArch(*n)),
+            };
+            record.emit(buffer, varfmt);
+            Ok(())
+        }
     }
 
     // NOTE: Below I import the Architecture enum from dataflow along with all of the
     // unit structs corresponding to each architecture supportd by dataflow.
-    use dataflow::architecture::*;
+    //use dataflow::architecture::*;
 
-    impl std::convert::TryInto<Architecture> for Arch {
-        type Error = Error;
+    //impl std::convert::TryInto<Architecture> for Arch {
+    //    type Error = Error;
 
-        fn try_into(self) -> Result<Architecture, Self::Error> {
-            let df_arch = match self {
-                Arch::X86 => Architecture::X86(X86),
-                Arch::X86_64 => Architecture::X86_64(X86_64),
-                Arch::X86_64Compat32 => Architecture::X86_64Compat32(X86_64Compat32),
-                Arch::PowerPc => Architecture::PPCBE32(PPCBE32),
-                // Arch::PowerPc64 => todo!(),
-                Arch::Arm => Architecture::ARM32(ARM32),
-                Arch::Arm64 => Architecture::AARCH64(AARCH64),
-                Arch::M68k => Architecture::M68K(M68K),
-                // Arch::Mips => todo!(),
-                // Arch::Mips64 => todo!(),
-                // Arch::Mipsel => todo!(),
-                // Arch::Mipsel64 => todo!(),
-                // Arch::Sparc => todo!(),
-                // Arch::Sparc64 => todo!(),
-                // Arch::RiscV => todo!(),
-                // Arch::RiscV64 => todo!(),
-                Arch::Unknown(num) => {
-                    return Err(Error::UnknownArch(num));
-                }
-                _ => {
-                    return Err(Error::NoDataflowArch(self));
-                }
-            };
+    //    fn try_into(self) -> Result<Architecture, Self::Error> {
+    //        let df_arch = match self {
+    //            Arch::X86 => Architecture::X86(X86),
+    //            Arch::X86_64 => Architecture::X86_64(X86_64),
+    //            Arch::X86_64Compat32 => Architecture::X86_64Compat32(X86_64Compat32),
+    //            Arch::PowerPc => Architecture::PPCBE32(PPCBE32),
+    //            // Arch::PowerPc64 => todo!(),
+    //            Arch::Arm => Architecture::ARM32(ARM32),
+    //            Arch::Arm64 => Architecture::AARCH64(AARCH64),
+    //            Arch::M68k => Architecture::M68K(M68K),
+    //            // Arch::Mips => todo!(),
+    //            // Arch::Mips64 => todo!(),
+    //            // Arch::Mipsel => todo!(),
+    //            // Arch::Mipsel64 => todo!(),
+    //            // Arch::Sparc => todo!(),
+    //            // Arch::Sparc64 => todo!(),
+    //            // Arch::RiscV => todo!(),
+    //            // Arch::RiscV64 => todo!(),
+    //            Arch::Unknown(num) => {
+    //                return Err(Error::UnknownArch(num));
+    //            }
+    //            _ => {
+    //                return Err(Error::NoDataflowArch(self));
+    //            }
+    //        };
 
-            Ok(df_arch)
-        }
-    }
+    //        Ok(df_arch)
+    //    }
+    //}
 
-    impl From<Architecture> for Arch {
-        fn from(value: Architecture) -> Self {
-            match value {
-                Architecture::X86(_) => Arch::X86,
-                Architecture::X86_64(_) => Arch::X86_64,
-                Architecture::X86_64Compat32(_) => Arch::X86_64Compat32,
-                Architecture::PPCBE32(_) => Arch::PowerPc,
-                Architecture::AARCH64(_) => Arch::Arm64,
-                Architecture::ARM32(_) => Arch::Arm,
-                Architecture::M68K(_) => Arch::M68k,
-                // TODO: docs
-                _ => unreachable!(),
-            }
-        }
-    }
+    //impl From<Architecture> for Arch {
+    //    fn from(value: Architecture) -> Self {
+    //        match value {
+    //            Architecture::X86(_) => Arch::X86,
+    //            Architecture::X86_64(_) => Arch::X86_64,
+    //            Architecture::X86_64Compat32(_) => Arch::X86_64Compat32,
+    //            Architecture::PPCBE32(_) => Arch::PowerPc,
+    //            Architecture::AARCH64(_) => Arch::Arm64,
+    //            Architecture::ARM32(_) => Arch::Arm,
+    //            Architecture::M68K(_) => Arch::M68k,
+    //            // TODO: docs
+    //            _ => unreachable!(),
+    //        }
+    //    }
+    //}
 }
