@@ -43,7 +43,6 @@ import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.listingfield.SpacetimePCField;
 import tracemadness.listingfield.SpacetimeTickField;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
 import tracemadness.slicelisting.SliceListingProvider;
 import docking.ActionContext;
 import docking.ComponentProvider;
@@ -452,6 +451,49 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			tw.setPopupMenuData(new MenuData(new String[] { "Time window" }, null, "tick"));
 			this.plugin.getTool().addAction(tw);
 		}
+		
+		{
+			SetCodeStartTickContextAction a = new SetCodeStartTickContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set code start tick" }, null, "codenav"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			SetCodeEndTickContextAction a = new SetCodeEndTickContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set code end tick" }, null, "codenav"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			SetCodeStartAddrContextAction a = new SetCodeStartAddrContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set code start addr" }, null, "codenav"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			SetCodeEndAddrContextAction a = new SetCodeEndAddrContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set code end addr" }, null, "codenav"));
+			this.plugin.getTool().addAction(a);
+		}
+		
+		{
+			SetDataStartTickContextAction a = new SetDataStartTickContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set data start tick" }, null, "datanav"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			SetDataEndTickContextAction a = new SetDataEndTickContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set data end tick" }, null, "datanav"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			SetDataStartAddrContextAction a = new SetDataStartAddrContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set data start addr" }, null, "datanav"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			SetDataEndAddrContextAction a = new SetDataEndAddrContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Set data end addr" }, null, "datanav"));
+			this.plugin.getTool().addAction(a);
+		}
+		
 		{
 			FunctionRunAccessesContextAction fra = new FunctionRunAccessesContextAction(this);
 			fra.setPopupMenuData(new MenuData(new String[] { "Function run accesses" }, null, "tick"));
@@ -683,16 +725,6 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 		this.newView(new TimeListingView(TimeListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
 	}
 
-	public void showObjectPhaseAccessors(ObjectInfo obj, ObjectPhase phase) {
-		Map<String, Long> params = new HashMap<>();
-		long size = obj.getSize();
-		params.put(TimeListingView.VIEW_PARAM.ADDR_START.name(), obj.getBase());
-		params.put(TimeListingView.VIEW_PARAM.ADDR_END.name(), obj.getBase() + size);
-		params.put(TimeListingView.VIEW_PARAM.TIME_START.name(), phase.getStart());
-		params.put(TimeListingView.VIEW_PARAM.TIME_END.name(), obj.getPhaseEnd(phase));
-		this.newView(new TimeListingView(TimeListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
-	}
-
 	// ---------------------------------------------------------------
 	// Here begin the menu item action classes.
 
@@ -731,8 +763,8 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 		@Override
 		public boolean isAddToPopup(ActionContext context) {
 			if (isEnabledForContext(context)) {
-				return this.provider.plugin.spaceListingProvider != null
-						&& this.provider.plugin.spaceListingProvider.isVisible();
+				return this.provider.plugin.accessListingProvider != null
+						&& this.provider.plugin.accessListingProvider.isVisible();
 			}
 			return false;
 		}
@@ -745,7 +777,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			case ADDR_WINDOW_VIEW:
 				start = provider.view.viewParams.get(TimeListingView.VIEW_PARAM.ADDR_START.name());
 				end = provider.view.viewParams.get(TimeListingView.VIEW_PARAM.ADDR_END.name());
-				provider.plugin.spaceListingProvider.showAccessesInRange(start, end);
+				provider.plugin.accessListingProvider.showAccessesInRange(start, end);
 				break;
 			case VALUE_VIEW:
 			case FORWARDSSLICE_VIEW:
@@ -756,7 +788,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			case TIME_WINDOW_VIEW:
 				start = provider.view.viewParams.get(TimeListingView.VIEW_PARAM.TIME_START.name());
 				end = provider.view.viewParams.get(TimeListingView.VIEW_PARAM.TIME_END.name());
-				provider.plugin.spaceListingProvider.showAccessesInTimeWindow(start, end);
+				provider.plugin.accessListingProvider.showAccessesInTimeWindow(start, end);
 				break;
 			default:
 				break;
@@ -914,9 +946,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 				return;
 			long size = ty.getLength();
 
-			ObjectPhase phase = new ObjectPhase(starttick, ty);
-			ObjectInfo obj = new ObjectInfo(String.format("%d_%d", starttick, base), name, size, base, starttick,
-					endtick, new ObjectPhase[] { phase });
+			ObjectInfo obj = new ObjectInfo(String.format("%d_%d", starttick, base), name, size, base, starttick, endtick, ty);
 
 			provider.plugin.madness.setObject(obj);
 			provider.plugin.objectManagerProvider.model.reload();
@@ -997,9 +1027,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			mgr.endTransaction(txid, true);
 			long size = sz.longValue();
 			DataType newType = mgr.getDataType("/" + ty.getName());
-			ObjectPhase phase = new ObjectPhase(starttick, newType);
-			ObjectInfo obj = new ObjectInfo(String.format("%d_%d", starttick, base), name, size, base, starttick,
-					endtick, new ObjectPhase[] { phase });
+			ObjectInfo obj = new ObjectInfo(String.format("%d_%d", starttick, base), name, size, base, starttick, endtick, newType);
 
 			provider.plugin.madness.setObject(obj);
 			provider.plugin.objectManagerProvider.model.reload();
@@ -1094,6 +1122,155 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 
 	}
 
+	private class SetDataStartTickContextAction extends TickAction {
+		public SetDataStartTickContextAction(TimeListingProvider provider) {
+			super(provider, "Data target tick start", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_S, InputEvent.ALT_DOWN_MASK));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			Long starttick = null;
+			if (f instanceof SpacetimeTickField) {
+				SpacetimeTickField sf = (SpacetimeTickField) f;
+				starttick = sf.getTick();
+			} else {
+				return;
+			}
+			plugin.dataNavProvider.setStartTick(starttick);
+		}
+	}
+	private class SetDataEndTickContextAction extends TickAction {
+		public SetDataEndTickContextAction(TimeListingProvider provider) {
+			super(provider, "Data target end tick", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_E, InputEvent.ALT_DOWN_MASK));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			Long tick = null;
+			if (f instanceof SpacetimeTickField) {
+				SpacetimeTickField sf = (SpacetimeTickField) f;
+				tick = sf.getTick();
+			} else {
+				return;
+			}
+			plugin.dataNavProvider.setEndTick(tick);
+		}
+	}
+	
+	private class SetDataStartAddrContextAction extends OperationAction {
+		public SetDataStartAddrContextAction(TimeListingProvider provider) {
+			super(provider, "Data target start address", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_S, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			SpacetimeOperationField sf = (SpacetimeOperationField) f;
+			long addr = sf.getValue().longValue();
+			plugin.dataNavProvider.setStartAddr(addr);
+		}
+	}
+	private class SetDataEndAddrContextAction extends OperationAction {
+		public SetDataEndAddrContextAction(TimeListingProvider provider) {
+			super(provider, "Data target end address", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_E, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			SpacetimeOperationField sf = (SpacetimeOperationField) f;
+			long addr = sf.getValue().longValue();
+			plugin.dataNavProvider.setEndAddr(addr);
+		}
+	}
+	
+	
+	private class SetCodeStartTickContextAction extends TickAction {
+		public SetCodeStartTickContextAction(TimeListingProvider provider) {
+			super(provider, "Code target start tick", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_C, InputEvent.ALT_DOWN_MASK));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			System.out.println("code end  tick " + context.toString());
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			Long tick = null;
+			if (f instanceof SpacetimeTickField) {
+				SpacetimeTickField sf = (SpacetimeTickField) f;
+				tick = sf.getTick();
+			} else {
+				return;
+			}
+			plugin.codeNavProvider.setStartTick(tick);
+		}
+	}
+	private class SetCodeEndTickContextAction extends TickAction {
+		public SetCodeEndTickContextAction(TimeListingProvider provider) {
+			super(provider, "Code target end tick", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_R, InputEvent.ALT_DOWN_MASK));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			System.out.println("code end  tick " + context.toString());
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			Long tick = null;
+			if (f instanceof SpacetimeTickField) {
+				SpacetimeTickField sf = (SpacetimeTickField) f;
+				tick = sf.getTick();
+			} else {
+				return;
+			}
+			plugin.codeNavProvider.setEndTick(tick);
+		}
+	}
+
+	private class SetCodeStartAddrContextAction extends PCAction {
+		public SetCodeStartAddrContextAction(TimeListingProvider provider) {
+			super(provider, "Code target start address", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_C, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			
+			SpacetimePCField sf = (SpacetimePCField) f;
+			long addr = sf.getPC();
+			plugin.codeNavProvider.setStartAddr(addr);
+		}
+	}
+	private class SetCodeEndAddrContextAction extends PCAction {
+		public SetCodeEndAddrContextAction(TimeListingProvider provider) {
+			super(provider, "Code target end address", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_R, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			
+			SpacetimePCField sf = (SpacetimePCField) f;
+			long addr = sf.getPC();
+			plugin.codeNavProvider.setEndAddr(addr);
+		}
+	}
+
 	// A right-click menu action class should extend the OperationAction
 	// class to be available whenever anything with a corresponding operationrun
 	// is right-clicked on
@@ -1155,6 +1332,26 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 				}
 			}
 			return false;
+		}
+		private class SetDataEndTickContextAction extends TickAction {
+			public SetDataEndTickContextAction(TimeListingProvider provider) {
+				super(provider, "Set data end tick", provider.plugin.getName());
+			}
+
+			@Override
+			public void actionPerformed(ActionContext context) {
+				System.out.println("data end  tick " + context.toString());
+				TimeListingActionContext tc = (TimeListingActionContext) context;
+				Field f = tc.getField();
+				Long tick = null;
+				if (f instanceof SpacetimeTickField) {
+					SpacetimeTickField sf = (SpacetimeTickField) f;
+					tick = sf.getTick();
+				} else {
+					return;
+				}
+				plugin.dataNavProvider.setEndTick(tick);
+			}
 		}
 
 		@Override
@@ -1475,7 +1672,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			Map<String, Long> params = new HashMap<>();
 			params.put(TimeListingView.VIEW_PARAM.TIME_START.name(), tick);
 			params.put(TimeListingView.VIEW_PARAM.DEPTH.name(), 10L);
-			this.provider.plugin.spaceListingProvider
+			this.provider.plugin.accessListingProvider
 					.newView(new AccessListingView(AccessListingView.VIEW_TYPE.FUNCTION_RUN_VIEW.name(), params));
 		}
 	}

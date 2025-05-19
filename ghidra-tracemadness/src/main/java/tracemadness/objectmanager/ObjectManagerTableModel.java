@@ -15,7 +15,6 @@ import ghidra.util.table.AddressBasedTableModel;
 import ghidra.util.task.TaskMonitor;
 import tracemadness.MadnessPlugin;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
 import tracemadness.View;
 
 @SuppressWarnings("serial")
@@ -74,12 +73,11 @@ public class ObjectManagerTableModel extends ThreadedTableModel<ObjectInfo, Madn
 		@Override
 		public String getValue(ObjectInfo rowObject, Settings settings, Object data,
 				ServiceProvider services) throws IllegalArgumentException {
-			ObjectPhase[] timeline = rowObject.getTimeline();
-			if(timeline.length > 0) {
-				DataType ty = timeline[0].getType();
-				if(ty != null) return ty.getName();
+			DataType ty = rowObject.getType();
+			if(ty == null) {
+				return String.format("unknown%d",rowObject.getSize());
 			}
-			return String.format("unknown%d", rowObject.getSize());
+			return rowObject.getType().getName();
 		}
 	}
 
@@ -159,7 +157,6 @@ public class ObjectManagerTableModel extends ThreadedTableModel<ObjectInfo, Madn
 
 	@Override
 	public MadnessPlugin getDataSource() {
-		// TODO Auto-generated method stub
-		return null;
+		return this.plugin;
 	}
 }

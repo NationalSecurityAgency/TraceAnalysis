@@ -38,8 +38,11 @@ struct Request {
 
 #[derive(Serialize, Debug)]
 struct Response {
-    buffer_ticks: Vec<u64>,
+    buffer_addrs: Vec<u64>,
+    buffer_creation_ticks: Vec<u64>,
+    buffer_destruction_ticks: Vec<u64>,
     mem_results: Vec<u8>,
+    mem_addrs: Vec<u64>,
     mem_ticks: Vec<u64>,
 }
 
@@ -110,14 +113,21 @@ fn handle_client(mut stream: TcpStream, mem: Arc<SpacetimeRTree>, strs: Arc<Stri
         eprintln!("{:?}", request_str);
         if let Ok(request) = dbg!(serde_json::from_str::<Request>(&request_str.trim())) {
             let mut response = Response {
-                buffer_ticks: Vec::new(),
+                buffer_addrs: Vec::new(),
+                buffer_creation_ticks: Vec::new(),
+                buffer_destruction_ticks: Vec::new(),
                 mem_results: Vec::new(),
                 mem_ticks: Vec::new(),
+                mem_addrs: Vec::new(),
             };
             if let Some(reqbuf) = request.buffer {
                 let results = strs.search(reqbuf.as_slice());
                 for i in 0..results.len() {
-                    response.buffer_ticks.push(results[i].created_at);
+                    response
+                        .buffer_destruction_ticks
+                        .push(results[i].destroyed_at);
+                    response.buffer_creation_ticks.push(results[i].created_at);
+                    response.buffer_addrs.push(results[i].address);
                 }
             }
             if let Some(addr) = request.mem_base {
@@ -126,14 +136,18 @@ fn handle_client(mut stream: TcpStream, mem: Arc<SpacetimeRTree>, strs: Arc<Stri
                         let results = mem.find(tick, addr, addr + len);
                         let mut ans = vec![0u8; len as usize];
                         let mut ticks = vec![0u64; len as usize];
+                        let mut addrs = vec![0u64; len as usize];
                         for op in results.iter() {
                             let mut i = 0;
                             for x in op.data.iter() {
                                 if op.address + i >= addr && op.address + i < addr + len {
                                     let offset = (op.address + i - addr) as usize;
                                     if op.created_at > ticks[offset] {
+                                        addrs[offset] = op.address + i;
                                         ticks[offset] = op.created_at;
                                         ans[offset] = *x;
+                                    } else {
+                                        addrs[offset] = op.address + i;
                                     }
                                 }
                                 i += 1;
@@ -141,11 +155,18 @@ fn handle_client(mut stream: TcpStream, mem: Arc<SpacetimeRTree>, strs: Arc<Stri
                         }
                         response.mem_results = ans;
                         response.mem_ticks = ticks;
+                        response.mem_addrs = addrs;
                     }
                 }
             }
 
             let response_str = serde_json::to_string(&response).unwrap();
+            let len_bytes = u32::to_le_bytes(response_str.len() as u32);
+            if let Err(e) = stream.write_all(&len_bytes) {
+                eprintln!("Failed to write to socket: {}", e);
+            } else {
+                stream.flush().unwrap();
+            }
             if let Err(e) = stream.write_all(response_str.as_bytes()) {
                 eprintln!("Failed to write to socket: {}", e);
             } else {

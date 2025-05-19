@@ -23,7 +23,7 @@ public class SliceListingProvider extends ComponentProvider implements ActionCon
 
 	private MadnessPlugin plugin;
 	private GhidraThreadedTablePanel<?> tablePanel;
-	private GhidraTable objTable;
+	private GhidraTable sliceTable;
 	public SliceListingTableModel model;
 	private boolean forwards;
 	private long depth;
@@ -55,7 +55,7 @@ public class SliceListingProvider extends ComponentProvider implements ActionCon
 	}
 
 	public SliceItem getSelectedObject() {		
-		int row = this.objTable.getSelectedRow();
+		int row = this.sliceTable.getSelectedRow();
 		if(row < 0) {
 			return null;
 		}
@@ -76,13 +76,13 @@ public class SliceListingProvider extends ComponentProvider implements ActionCon
 
 	private Component buildTablePanel() {
 		tablePanel = new GhidraThreadedTablePanel<SliceItem>(model);
-		objTable = tablePanel.getTable();
-		objTable.setName("Objects");
-		objTable.setRowSelectionAllowed(true);
+		sliceTable = tablePanel.getTable();
+		sliceTable.setName("Objects");
+		sliceTable.setRowSelectionAllowed(true);
 
 		JPanel container = new JPanel(new BorderLayout());
 		container.add(tablePanel, BorderLayout.CENTER);
-		var tableFilterPanel = new GhidraTableFilterPanel<SliceItem>(objTable, model);
+		var tableFilterPanel = new GhidraTableFilterPanel<SliceItem>(sliceTable, model);
 		GDLabel filterLabel = (GDLabel) tableFilterPanel.getComponent(0);
 		filterLabel.setText("Table Filter:");
 		container.add(tableFilterPanel, BorderLayout.SOUTH);

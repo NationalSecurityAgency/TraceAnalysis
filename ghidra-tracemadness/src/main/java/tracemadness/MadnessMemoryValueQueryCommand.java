@@ -19,7 +19,7 @@ import com.arangodb.ArangoDatabaseAsync;
 import com.arangodb.shaded.fasterxml.jackson.databind.JsonNode;
 
 
-public class MadnessQueryCommand extends BackgroundCommand {
+public class MadnessMemoryValueQueryCommand extends BackgroundCommand {
 
 	private MadnessQuery query;
 	private MadnessQueryResultListener resultListener;
@@ -27,7 +27,7 @@ public class MadnessQueryCommand extends BackgroundCommand {
 	private ArangoDatabaseAsync dbConnection;
 	private String tag;
 
-	public MadnessQueryCommand(MadnessQuery baseQuery, String[] params, ArangoDatabaseAsync db, MadnessQueryResultListener listener, String queryTag) throws Exception {
+	public MadnessMemoryValueQueryCommand(MadnessQuery baseQuery, String[] params, ArangoDatabaseAsync db, MadnessQueryResultListener listener, String queryTag) throws Exception {
 		this.query = baseQuery;
 		this.resultListener = listener;
 		this.queryParams = params;
@@ -71,7 +71,6 @@ public class MadnessQueryCommand extends BackgroundCommand {
 		}
 		if(f.isCancelled()) return false;
 		if(f.isCompletedExceptionally()) return false;
-		if(!f.isDone()) return false;
 		
 		//ArangoCursor<JsonNode> queryResults = this.dbConnection.query(formattedQuery, JsonNode.class);
 		try {

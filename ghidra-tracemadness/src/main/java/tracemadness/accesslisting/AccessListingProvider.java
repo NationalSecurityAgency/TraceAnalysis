@@ -28,7 +28,6 @@ import tracemadness.listingfield.SpacetimeAddrField;
 import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.listingfield.SpacetimeTickField;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
 import tracemadness.timelisting.TimeListingSettings;
 import tracemadness.timelisting.TimeListingView;
 import docking.ActionContext;
@@ -305,7 +304,9 @@ public class AccessListingProvider
 	
 	@Override
 	public void fieldLocationChanged(FieldLocation location, Field field, EventTrigger trigger) {
-	
+		if(field == null) {
+			return;
+		}
 		System.out.println("location -> " + location.toString() + " in " + field.toString());
 		location.getIndex();
 		// set the label to the field's full text
@@ -325,6 +326,28 @@ public class AccessListingProvider
 		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), end);
 		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_WINDOW_VIEW.name(), params));
 	}
+	public void showAccessesInRect(long startTick, long endTick, long startAddr, long endAddr) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), startAddr);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), endAddr);
+		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), startTick);
+		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), endTick);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
+	}
+	public void showAccessesInPCRect(long startTick, long endTick, long startAddr, long endAddr) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), startAddr);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), endAddr);
+		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), startTick);
+		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), endTick);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.PC_TIME_WINDOW_VIEW.name(), params));
+	}
+	public void showAccessesByPCRange(long start, long end) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), start);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), end);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.PC_WINDOW_VIEW.name(), params));
+	}
 	public void showObjectAccesses(ObjectInfo obj) {
 		HashMap<String, Long> params = new HashMap<>();
 		long size = obj.getSize();
@@ -332,15 +355,6 @@ public class AccessListingProvider
 		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), obj.getBase()+size);
 		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), obj.getBirth());
 		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), obj.getDeath());
-		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
-	}
-	public void showObjectPhaseAccesses(ObjectInfo obj, ObjectPhase phase) {
-		HashMap<String, Long> params = new HashMap<>();
-		long size = obj.getSize();
-		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), obj.getBase());
-		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), obj.getBase()+size);
-		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), phase.getStart());
-		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), obj.getPhaseEnd(phase));
 		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
 	}
 	public void showAccessesInTimeWindow(long start, long end) {

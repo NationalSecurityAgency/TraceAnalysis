@@ -2,7 +2,7 @@ FROM traceanalysis/dist
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update -yq && apt-get install unzip
+RUN apt-get update -yq && apt-get install -y unzip
 
 COPY entrypoint.py /entrypoint
 COPY templates/ /usr/local/share/container-tracemadness

@@ -12,7 +12,7 @@ public class MemoryListingView implements View {
 	}
 
 	public static enum VIEW_PARAM {
-		ADDR_START, ADDR_END, TIME_START, TIME_END
+		ADDR_START, LEN, TICK
 	}
 	public Long lastAddress;
 	
@@ -23,8 +23,9 @@ public class MemoryListingView implements View {
 	public MemoryListingView() {
 		this.viewType = VIEW_TYPE.ADDR_WINDOW_VIEW;
 		this.viewParams = new HashMap<String, Long>();
-		this.viewParams.put(VIEW_PARAM.TIME_START.name(), 1L);
-		this.viewParams.put(VIEW_PARAM.TIME_END.name(), 100L);
+		this.viewParams.put(VIEW_PARAM.ADDR_START.name(), 0L);
+		this.viewParams.put(VIEW_PARAM.LEN.name(), 0x1000L);
+		this.viewParams.put(VIEW_PARAM.TICK.name(), 1L);
 	}
 
 	public MemoryListingView(String ty, Map<String, Long> params) {
@@ -35,23 +36,15 @@ public class MemoryListingView implements View {
 	public String toString() {
 		switch (this.viewType) {
 		case ADDR_WINDOW_VIEW:
-			return String.format("Address in [0x%x, 0x%x]",
+			return String.format("Address in [0x%x, 0x%x] at time %d",
 					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
-					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
+					this.viewParams.get(VIEW_PARAM.LEN.name()),
+					this.viewParams.get(VIEW_PARAM.TICK.name()));
 		}
 		return "";
 	}
 
 	public String toAQLString() {
-		switch (this.viewType) {
-		case ADDR_WINDOW_VIEW:
-			return String.format("for n in range(%d, %d)\n"
-					+ "  for op in operationruns filter op.addr == n or op.assocd_addr == n\n",
-					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
-					this.viewParams.get(VIEW_PARAM.ADDR_END.name()),
-					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
-					this.viewParams.get(VIEW_PARAM.TIME_END.name()));
-		}
 		return "";
 	}
 
@@ -71,7 +64,7 @@ public class MemoryListingView implements View {
 	public String[] getViewParams(String name) {
 		switch (VIEW_TYPE.valueOf(name)) {
 		case ADDR_WINDOW_VIEW:
-			return new String[] { VIEW_PARAM.ADDR_START.name(), VIEW_PARAM.ADDR_END.name() };
+			return new String[] { VIEW_PARAM.ADDR_START.name(), VIEW_PARAM.LEN.name(), VIEW_PARAM.TICK.name() };
 		}
 		return null;
 	}

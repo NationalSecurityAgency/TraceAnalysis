@@ -274,6 +274,9 @@
       <description>The tick on which this object ceases its existence</description>
       <join table="instructionruns" attr="tick" />
     </attr>
+    <attr name="type" type="string">
+      <description>The Ghidra UniversalID of the object's type</description>
+    </attr>
     <index type="persistent">
       <field>base</field>
     </index>
@@ -283,16 +286,6 @@
     <index type="persistent">
       <field>end</field>
     </index>
-  </node>
-  <node name="phases" sourcetype="user">
-    <description>Information about the various types that capture how an object is interacted with at various phases over the course of its lifetime</description>
-    <attr name="type" type="int">
-      <description>The Ghidra UniversalID of the type describing this object during the current phase</description>
-    </attr>
-    <attr name="start" type="int">
-      <description>The tick of the start of the current phase (the next phase is dictated by the `start` entries of the other phases of a given object)</description>
-      <join table="instructionruns" attr="tick" />
-    </attr>
   </node>
   <node name="memaccesses" sourcetype="analysis">
     <description>The calls to malloc along with their return values made during the trace</description>
@@ -359,9 +352,6 @@
   </edge>
   <edge name="infunctionrun" sourcetype="dynamic" src="instructionruns" dst="functionruns" sourcefile="functionticks.csv">
     <description>An edge from `x` to `y` means that the `instructionrun` `x` occurred during `functionrun` `y`</description>
-  </edge>
-  <edge name="objectphases" sourcetype="user" src="objects" dst="phases">
-    <description>An edge from `x` to `y` means that the `object` `x` has `y` as one of its phases</description>
   </edge>
   <edge name="calls" sourcetype="dynamic" src="functionruns" dst="functionruns" sourcefile="calls.csv">
     <description>An edge from `x` to `y` means that the `functionrun` `x` contained the call which caused the `functionrun` `y` to run</description>

@@ -6,6 +6,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Level;
@@ -20,10 +22,12 @@ import com.arangodb.Protocol;
 import com.arangodb.config.ArangoConfigProperties;
 import com.arangodb.entity.BaseDocument;
 import com.arangodb.entity.BaseEdgeDocument;
+import com.arangodb.entity.DocumentCreateEntity;
+import com.arangodb.entity.DocumentUpdateEntity;
 
+import ghidra.program.model.data.DataType;
 import resources.ResourceManager;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
 
 public class ArangoClient {
 
@@ -115,6 +119,7 @@ public class ArangoClient {
 		long size = obj.getSize().longValue();
 		Long starttick = obj.getBirth();
 		Long endtick = obj.getDeath();
+		DataType ty = obj.getType();
 		//MadnessPlugin.LOG.info("SetObject base = %x = %d\n", base, base);
 		BaseDocument doc = new BaseDocument();
 		String key = obj.getKey();
@@ -124,35 +129,30 @@ public class ArangoClient {
 		doc.addAttribute("size", size);
 		doc.addAttribute("start", starttick);
 		doc.addAttribute("end", endtick);
+		doc.addAttribute("type", ty.getUniversalID().toString());
 
 		
 		try {
-			this.db.collection("objects").insertDocument(doc);
+			CompletableFuture<DocumentCreateEntity<Void>> f = this.db.collection("objects").insertDocument(doc);
+			try {
+				f.get();
+			} catch(InterruptedException ie) {
+				System.out.println("document creation interrupted: " + ie.getStackTrace());
+			} catch(ExecutionException ee) {
+				System.out.println("document creation failed: " + ee.getStackTrace());
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			//MadnessPlugin.LOG.info("SetObject UPDATING...");
-			this.db.collection("objects").updateDocument(key, doc);
-		}
-
-		ObjectPhase[] timeline = obj.getTimeline();
-		for(int i = 0 ; i < timeline.length; i++) {
-			BaseDocument entry = new BaseDocument();
-			String k = String.format("%s_%d", obj.getKey(), timeline[i].getStart());
-			entry.setKey(k);
-			entry.addAttribute("start", timeline[i].getStart());
-			entry.addAttribute("type", timeline[i].getType().getUniversalID().toString());
-			BaseEdgeDocument edge = new BaseEdgeDocument();
-			edge.setFrom("objects/"+obj.getKey());
-			edge.setTo("phases/"+entry.getKey());
-			edge.setKey(doc.getKey() + "_" + entry.getKey());
+			CompletableFuture<DocumentUpdateEntity<Void>> f = this.db.collection("objects").updateDocument(key, doc);
 			try {
-				this.db.collection("phases").insertDocument(entry);
-				this.db.collection("objectphases").insertDocument(edge);
-			} catch(Exception e) {
-				e.printStackTrace();
+				f.get();
+			} catch(InterruptedException ie) {
+				System.out.println("document update interrupted: " + ie.getStackTrace());
+			} catch(ExecutionException ee) {
+				System.out.println("document update failed: " + ee.getStackTrace());
 			}
 		}
-
 		// BaseEdgeDocument edge = new BaseEdgeDocument();
 		// edge.setTo("types/"+"TYPE_"+typename.replaceAll("\\*",
 		// "PTR").replaceAll("[^a-zA-Z0-9_]", "_"));

@@ -400,7 +400,10 @@ def extract_dynamic(args):
     with TempDir() as tmpdir:
         cwd = Path.cwd()
         os.chdir(tmpdir)
+        os.mkdir(tmpdir / "out")
+        os.mkdir(tmpdir / "out" / "memory")
         try:
+            # analyse dataflow
             command = [
                 "tm-analyze",
                 "-i",
@@ -408,6 +411,20 @@ def extract_dynamic(args):
             ]
             debug(f"Running command: {command}")
             subprocess.check_call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # analyse memory
+            command = [
+                "tm-index",
+                "--st-index",
+                "out/memory/spacetime.index",
+                "--str-index",
+                "out/memory/strings.index",
+                "-i",
+                str(args.trace_file),
+            ]
+            debug(f"Running command: {command}")
+            subprocess.check_call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
             shutil.copytree(str(tmpdir / "out"), str(args.dynamic))
         finally:
             os.chdir(cwd)
@@ -606,6 +623,20 @@ def start_ghidra_client():
     debug(f"Running command: {command}")
     subprocess.run(command)
 
+def start_mem_server(args):
+    info("Starting memory server")
+    command = [
+        "tm-mem-server",
+        "--st-index",
+        f"{args.dynamic}/memory/spacetime.index",
+        "--str-index",
+        f"{args.dynamic}/memory/strings.index",
+        "--port",
+        "9898",
+    ]
+    debug(f"Running command: {command}")
+    subprocess.Popen(command)
+
 def main(args):
     if args.ghidra_project.suffix not in ['.gpr', None]:
         error("Provided Ghidra Project should be a .gpr file")
@@ -666,6 +697,7 @@ def main(args):
     try:
         import_to_database(args)
         if "DISPLAY" in os.environ:
+            start_mem_server(args)
             start_ghidra_client()
         else:
             warn("Not running Ghidra because DISPLAY is not set")
@@ -750,7 +782,7 @@ if __name__ == "__main__":
         
     if args.dynamic is None:
         args.dynamic = Path(os.environ.get("TM_DYNAMIC", "/appdata/analyzed"))
-
+        
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:

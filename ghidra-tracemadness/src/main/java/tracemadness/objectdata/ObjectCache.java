@@ -93,7 +93,7 @@ public class ObjectCache implements MadnessQueryResultListener {
 			Map.Entry<Long, ObjectInfo> entry = objsAt.floorEntry(tick);
 			if(entry != null && entry.getValue().getDeath() >= tick) {
 				ObjectInfo obj = entry.getValue();
-				DataType t = obj.getType(tick);
+				DataType t = obj.getType();
 				String ans = obj.getName();
 				if(t != null && t instanceof StructureInternal) {
 					return ans + "." + getTypePath((StructureInternal) t, (int)(addr-obj.getBase()), size);
@@ -114,16 +114,10 @@ public class ObjectCache implements MadnessQueryResultListener {
 				long birth = ob.getLong("start");
 				long death = ob.getLong("end");
 				long size = ob.getLong("size");
-				JSONArray timeline = ob.getJSONArray("timeline");
-				ObjectPhase[] tl = new ObjectPhase[timeline.length()];
-				for(int i = 0; i < timeline.length(); i++) {
-					JSONObject tlo = timeline.getJSONObject(i);
-					long typeId = Long.parseLong(tlo.getString("type"));
-					DataType ty = datatypeManager.findDataTypeForID(new UniversalID(typeId));
-					ObjectPhase info = new ObjectPhase(tlo.getLong("start"), ty);
-					tl[i] = info;
-				}
-				ObjectInfo info = new ObjectInfo(key, name, size, base, birth, death, tl);
+				String typeId = ob.getString("type");
+				UniversalID typeUID = new UniversalID(Long.parseLong(typeId));
+				DataType ty = datatypeManager.findDataTypeForID(typeUID);
+				ObjectInfo info = new ObjectInfo(key, name, size, base, birth, death, ty);
 				this.objects.add(info);
 				this.keyToObjectMap.put(info.getKey(), info);
 				for(int i = 0; i < size; i++) {
@@ -133,6 +127,9 @@ public class ObjectCache implements MadnessQueryResultListener {
 					}
 					TreeMap<Long, ObjectInfo> objsAt = this.addressToObjectsMap.get(addr);
 					objsAt.put(birth, info);
+				}
+				if(plugin.objectManagerProvider != null) {
+					plugin.objectManagerProvider.model.reload();
 				}
 				
 			} catch (Exception e) {

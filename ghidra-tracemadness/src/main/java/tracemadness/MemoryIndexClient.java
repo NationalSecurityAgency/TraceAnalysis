@@ -1,183 +1,235 @@
 package tracemadness;
 
-import java.io.InputStream;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.StandardSocketOptions;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.logging.log4j.Level;
-
-import org.apache.logging.log4j.core.config.Configurator;
+import org.json.JSONArray;
 import org.json.JSONObject;
+import org.python.modules.time.Time;
 
-import com.arangodb.ArangoDB;
-import com.arangodb.ArangoDatabase;
-import com.arangodb.ArangoDatabaseAsync;
-import com.arangodb.Protocol;
-import com.arangodb.config.ArangoConfigProperties;
-import com.arangodb.entity.BaseDocument;
-import com.arangodb.entity.BaseEdgeDocument;
+import ghidra.util.task.TaskMonitor;
+import tracemadness.memindex.MemorySearchResult;
+import tracemadness.memindex.MemoryValueQueryResult;
 
-import resources.ResourceManager;
-import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
 
 public class MemoryIndexClient {
-
-	protected ArangoConfigProperties config = null;
-	private ArangoDB arangoClient = null;
-	private HashMap<String, ArangoDatabaseAsync> dbs = null;
-	private ArangoDatabase db2 = null;
-	private ArangoDatabaseAsync db = null;
-	private HashMap<String, MadnessQuery> queries = null;
-
-	public MemoryIndexClient() throws Exception {
-		config = ArangoConfigProperties.fromFile();
-
-		arangoClient = new ArangoDB.Builder().loadProperties(config).protocol(Protocol.HTTP_JSON).build();
-		dbs = new HashMap<String, ArangoDatabaseAsync>();
-		Configurator.setLevel("com.arangodb.shaded.netty", Level.ERROR); //this quiets down a very chatty logging setup that fills up 'application.log' very fast
-
-		List<String> availableDBs = new ArrayList<String>(arangoClient.getAccessibleDatabases());
-		for (int i = 0; i < availableDBs.size(); i++) {
-			String database = availableDBs.get(i);
-			if (database.startsWith("_"))
-				continue;
-			if (this.db == null) {
-				this.db2 = arangoClient.db(database);
-				this.db = arangoClient.async().db(database);
+	/*
+	 * This is an async client for tm-mem-server that speaks the protocol
+	 * query: 
+	 * {
+	 * 	"buffer":[byte array]
+	 * } 
+	 * -> response: 
+	 * {
+	 * 	"buffer_addrs":[addresses at which that buffer is found], 
+	 * 	"buffer_creation_ticks":[the ticks at which those addresses become populated with the buffer being searched for],
+	 *  "buffer_destruction_ticks":[the ticks at which those addresses cease to be entirely populated with the buffer being searched for]
+	 * }
+	 *   
+	 * OR
+	 *
+	 * query: 
+	 * {
+	 * 	"mem_tick":tick at which to query,
+	 * 	"mem_base":the start address at to search for values as of that tick,
+	 * 	"mem_len":the length of the region to retrieve values for that tick,
+	 * } 
+	 * -> response: 
+	 * { 
+	 * 	"mem_addrs":[the (long) addresses for which values were found in the trace at or before the specified tick],
+	 * 	"mem_results":[the byte values of memory at those addresses],
+	 *  "mem_ticks":[the ticks at which those values came to be]
+	 * } 
+	 */
+	String server_addr;
+	int server_port;
+	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	public MemoryIndexClient(String server, int port) throws Exception {
+		this.server_addr = server;
+		this.server_port = port;
+	}
+	public CompletableFuture<JSONObject> makeRequest(byte[] req, int timeout) {
+		return CompletableFuture.supplyAsync(() -> doSendAndReceive(req, timeout), executor);
+	}
+	public void cancel() {
+	    executor.shutdownNow();
+	}
+	private JSONObject doSendAndReceive(byte[] req, int timeout) {
+		try {
+			SocketChannel channel = SocketChannel.open();
+			channel.configureBlocking(true);
+			channel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+			InetSocketAddress addr = new InetSocketAddress(this.server_addr, this.server_port);
+			boolean isConnected = channel.connect(addr);
+			int t = 0;
+			while(!isConnected) {
+				try {
+					TimeUnit.MILLISECONDS.sleep(100);
+					isConnected = channel.finishConnect();
+				} catch(InterruptedException e) {
+					channel.close();
+					return null;
+				} catch(IOException e) {
+					channel.close();
+					return null;
+				}
+				t += 100;
+				if(t >= 1000*timeout) {
+					channel.close();
+					return null;
+				}
 			}
-			this.dbs.put(database, arangoClient.async().db(database));
-		}
-
-		this.queries = new HashMap<String, MadnessQuery>();
-		JSONObject queryJson = readJSONFile("data/queries.json");
-
-		Iterator<?> queryList = queryJson.keys();
-		while (queryList.hasNext()) {
-			String currName = (String) queryList.next();
-			MadnessQuery currQuery = new MadnessQuery(queryJson, currName);
-			this.queries.put(currName, currQuery);
-		}
-	}
-
-	public void selectDB(String selector) {
-		this.db = this.dbs.get(selector); // throws key error.
-	}
-
-	public ArangoDatabaseAsync getCurrentDB() {
-		return this.db;
-	}
-
-	public Collection<String> getAllDBs() {
-		return this.dbs.keySet();
-	}
-
-	public static JSONObject readJSONFile(String absFileLocation) {
-		InputStream is = ResourceManager.getResourceAsStream(absFileLocation);
-		JSONObject jdata = null;
-		try {
-			String jsonTxt = IOUtils.toString(is, "UTF-8");
-			jdata = new JSONObject(jsonTxt);
-		} catch (Exception e) {
+			if(!channel.isConnected()) {
+				channel.close();
+				return null;
+			}
+			int l = req.length;
+			ByteBuffer bb = ByteBuffer.allocate(4+l);
+			bb.order(ByteOrder.LITTLE_ENDIAN);
+			bb.putInt(l);
+			bb.put(req);
+			bb.position(0);
+			int wrote = channel.write(bb);
+			System.out.println("wrote : " + wrote);
+		    byte[] lenBytes = new byte[4];
+		    ByteBuffer lenBuffer = ByteBuffer.wrap(lenBytes);
+		    lenBuffer.order(ByteOrder.LITTLE_ENDIAN);
+		    lenBuffer.position(0);
+		    int readBytes = channel.read(lenBuffer);
+		    if(readBytes < lenBytes.length) {
+		    	channel.close();
+		    	return null;
+		    }
+		    lenBuffer.rewind();
+		    int len = lenBuffer.getInt();
+		    ByteBuffer buf = ByteBuffer.wrap(new byte[len]);
+			readBytes = channel.read(buf);
+			if(readBytes != len) {
+				channel.close();
+				return null;
+			}
+			buf.position(0);
+			byte[] respData = new byte[len];
+			buf.get(respData);
+			JSONObject ans = new JSONObject(new String(respData));
+			return ans;
+		} catch(IOException e) {
 			e.printStackTrace();
 		}
-
-		return jdata;
+		return null;
 	}
-
-	public int getNumberOfAvailableQueries() {
-		return this.queries.size();
-	}
-
-	public List<MadnessQuery> getAvailableQueries() {
-		return new ArrayList<MadnessQuery>(this.queries.values());
-	}
-
-	public MadnessQuery getQuery(String name) {
-		return this.queries.containsKey(name) ? this.queries.get(name) : null;
-	}
-
-	public List<JSONObject> runQuery(String queryName, String[] params) throws Exception {
-		MadnessQuery query = getQuery(queryName);
-		if (query == null) {
-			return null;
+	public void test() {
+		{
+			ArrayList<MemorySearchResult> res = this.searchMemory(new byte[] {113, 119, 101, 113}, null, 10);
+			for(var r : res) {
+				System.out.println("FOUND qweq at...");
+				System.out.println(r);
+			}
 		}
-		return query.runQuery(params, this.db2);
+		{
+			ArrayList<MemoryValueQueryResult> res = this.getMemory(150000, 0x5f699da712e0L, 100, null, 10);
+			for(var r : res) {
+				System.out.println("FOUND qweq at...");
+				System.out.println(r);
+			}
+		}
 	}
-
-	public void setObject(ObjectInfo obj) {
-		String name = obj.getName();
-		long base = obj.getBase().longValue();
-		long size = obj.getSize().longValue();
-		Long starttick = obj.getBirth();
-		Long endtick = obj.getDeath();
-		//MadnessPlugin.LOG.info("SetObject base = %x = %d\n", base, base);
-		BaseDocument doc = new BaseDocument();
-		String key = obj.getKey();
-		doc.setKey(key);
-		doc.addAttribute("name", name);
-		doc.addAttribute("base", base);
-		doc.addAttribute("size", size);
-		doc.addAttribute("start", starttick);
-		doc.addAttribute("end", endtick);
-
-		
+	public ArrayList<MemorySearchResult> searchMemory(byte[] searchString, TaskMonitor monitor, int timeout) {
+		ArrayList<MemorySearchResult> res = new ArrayList<>();
 		try {
-			this.db.collection("objects").insertDocument(doc);
-		} catch (Exception e) {
-			e.printStackTrace();
-			//MadnessPlugin.LOG.info("SetObject UPDATING...");
-			this.db.collection("objects").updateDocument(key, doc);
-		}
-
-		ObjectPhase[] timeline = obj.getTimeline();
-		for(int i = 0 ; i < timeline.length; i++) {
-			BaseDocument entry = new BaseDocument();
-			String k = String.format("%s_%d", obj.getKey(), timeline[i].getStart());
-			entry.setKey(k);
-			entry.addAttribute("start", timeline[i].getStart());
-			entry.addAttribute("type", timeline[i].getType().getUniversalID().toString());
-			BaseEdgeDocument edge = new BaseEdgeDocument();
-			edge.setFrom("objects/"+obj.getKey());
-			edge.setTo("phases/"+entry.getKey());
-			edge.setKey(doc.getKey() + "_" + entry.getKey());
+			JSONObject req = new JSONObject();
+			JSONArray buffer = new JSONArray();
+			for(int i = 0; i < searchString.length; i++) {
+				buffer.put(searchString[i]);
+			}
+			req.put("buffer", buffer);
+			System.out.println("req: " + req.toString());
+			CompletableFuture<JSONObject> futureResponse = this.makeRequest(req.toString().getBytes(), timeout);
+			int t = 0;
+			
+			while(t < timeout) {
+				Time.sleep(1);
+				if(monitor != null && monitor.isCancelled()) {
+					futureResponse.cancel(true);
+					return null;
+				}
+				if(futureResponse.isDone()) break;
+			}
+			if(futureResponse.isCancelled()) return null;
+			if(futureResponse.isCompletedExceptionally()) return null;
+			if(!futureResponse.isDone()) {
+				futureResponse.cancel(true);
+				return null;
+			}
 			try {
-				this.db.collection("phases").insertDocument(entry);
-				this.db.collection("objectphases").insertDocument(edge);
-			} catch(Exception e) {
-				e.printStackTrace();
+				JSONObject ans = futureResponse.get(1, TimeUnit.SECONDS);
+				res.add(new MemorySearchResult(ans));
+			} catch(TimeoutException e) {
+				futureResponse.cancel(true);
+				return null;
+			} catch(ExecutionException e) {
+				return null;
+			} catch(InterruptedException e) {
+				// do we need to do anything with the future in this case?
+				return null;
 			}
-		}
-
-		// BaseEdgeDocument edge = new BaseEdgeDocument();
-		// edge.setTo("types/"+"TYPE_"+typename.replaceAll("\\*",
-		// "PTR").replaceAll("[^a-zA-Z0-9_]", "_"));
-		// edge.setFrom("objects/"+Long.toString(base));
-		// this.db.collection("hastype").insertDocument(edge);
-	}
-	
-	public void updateObject(ObjectInfo obj) {
-		try {
-			String[] params = new String[] { obj.getKey() };	
-			runQuery("rmobj", params);
-			this.setObject(obj);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return;
 		}
+		return res;
 	}
-
-	public void removeObject(ObjectInfo obj) {
+	public ArrayList<MemoryValueQueryResult> getMemory(long tick, long base, long len, TaskMonitor monitor, int timeout) {
+		ArrayList<MemoryValueQueryResult> res = new ArrayList<>();
 		try {
-			String[] params = new String[] { obj.getKey() };	
-			runQuery("rmobj", params);
-		} catch (Exception e) {
+			JSONObject req = new JSONObject();
+			req.put("mem_base", base);
+			req.put("mem_len", len);
+			req.put("mem_tick", tick);
+
+			CompletableFuture<JSONObject> futureResponse = this.makeRequest(req.toString().getBytes(), timeout);
+			int t = 0;
+			
+			while(t < timeout) {
+				Time.sleep(1);
+				if(monitor != null && monitor.isCancelled()) {
+					futureResponse.cancel(true);
+					return null;
+				}
+				if(futureResponse.isDone()) break;
+			}
+			if(futureResponse.isCancelled()) return null;
+			if(futureResponse.isCompletedExceptionally()) return null;
+			if(!futureResponse.isDone()) {
+				futureResponse.cancel(true);
+				return null;
+			}
+			try {
+				JSONObject ans = futureResponse.get(1, TimeUnit.SECONDS);
+				res.add(new MemoryValueQueryResult(ans));
+			} catch(TimeoutException e) {
+				futureResponse.cancel(true);
+				return null;
+			} catch(ExecutionException e) {
+				return null;
+			} catch(InterruptedException e) {
+				// do we need to do anything with the future in this case?
+				return null;
+			}
+		} catch(Exception e) {
 			e.printStackTrace();
-			return;
 		}
+		return res;
 	}
 }

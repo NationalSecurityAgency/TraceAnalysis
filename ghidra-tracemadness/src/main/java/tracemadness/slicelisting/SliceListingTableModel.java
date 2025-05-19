@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import docking.widgets.table.AbstractDynamicTableColumn;
@@ -159,7 +160,12 @@ public class SliceListingTableModel extends ThreadedTableModel<SliceItem, Madnes
 		this.slice = new ArrayList<>();
 		for(int i = 0; i < results.size(); i++) {
 			JSONObject obj = results.get(i);
-			this.slice.add(new SliceItem(obj));
+			try {
+				this.slice.add(new SliceItem(obj));
+			} catch(JSONException e) {
+				System.out.println("failed to deserialise into SliceItem: " + obj.toString());
+				continue;
+			}
 		}
 		this.reload();
 	}

@@ -44,6 +44,7 @@ import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.program.database.DataTypeArchiveDB;
+import ghidra.program.database.ProjectDataTypeManager;
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.data.DataType;
@@ -57,6 +58,8 @@ import ghidra.util.data.DataTypeParser.AllowedDataTypes;
 import tracemadness.objectdata.ObjectCache;
 import tracemadness.objectmanager.ObjectManagerProvider;
 import tracemadness.settings.Setting;
+import tracemadness.targetnav.CodeTargetProvider;
+import tracemadness.targetnav.DataTargetProvider;
 import tracemadness.timelisting.TimeListingProvider;
 import tracemadness.modulemap.ModuleInfo;
 import tracemadness.modulemap.ModuleMap;
@@ -64,6 +67,7 @@ import tracemadness.modulemap.ModuleMapProvider;
 import tracemadness.accesslisting.AccessListingProvider;
 import tracemadness.accessmap.AccessMapProvider;
 import tracemadness.calltree.CallTreeProvider;
+import tracemadness.memorylisting.MemoryListingProvider;
 
 /**
  * TODO: Provide class-level documentation that describes what this plugin does.
@@ -81,13 +85,19 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 	public static final org.apache.logging.log4j.Logger LOG = LogManager.getLogger(MadnessPlugin.class);
 	static MadnessPluginProvider provider;
 
+	public CodeTargetProvider codeNavProvider;
+	public DataTargetProvider dataNavProvider;
+	
 	public TimeListingProvider timeListingProvider;
+	
 	public AccessMapProvider accessMapProvider;
-	public AccessListingProvider spaceListingProvider;
+	public AccessListingProvider accessListingProvider;
+	public MemoryListingProvider memoryListingProvider;
 	public ObjectManagerProvider objectManagerProvider;
 	public ModuleMapProvider moduleMapProvider;
 
 	public ArangoClient madness = null;
+	public MemoryIndexClient memory = null;
 	public ObjectCache objectCache;
 	public ModuleMap moduleMap;
 	
@@ -110,7 +120,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 	public Long minTick;
 	public Long maxTick;
 	public Boolean shouldHighlight;
-	public DataTypeManager dataTypeManager;
+	public ProjectDataTypeManager dataTypeManager;
 	public CallTreeProvider calltreeProvider;
 	/**
 	 * Plugin constructor.
@@ -122,6 +132,8 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		super(tool);
 		MadnessPlugin.currentTool = tool;
 		madness = new ArangoClient();
+		memory = new MemoryIndexClient("127.0.0.1", 9898);
+		//memory.test();
 		programManager = tool.getService(ProgramManager.class);
 		decomp = new DecompInterface();
 		decompCache = new HashMap<Address, HighFunction>();
@@ -147,19 +159,24 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		DataTypeArchiveDB archive;
 		if(archiveFile == null) {
 			try {
-				archive = new DataTypeArchiveDB(root, "tracemadness", currentProgram);
-				this.dataTypeManager = archive.getDataTypeManager();
+				archive = new DataTypeArchiveDB(root, "tracemadness", this);
+				this.dataTypeManager = (ProjectDataTypeManager)archive.getDataTypeManager();
+				this.dataTypeManager.setProgramArchitecture(currentProgram.getLanguage(), currentProgram.getCompilerSpec().getCompilerSpecID(), null, MadnessPlugin.flatApi.getMonitor());
+				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		} else {
 			try {
-				if(archiveFile.isOpen() || archiveFile.checkout(true, null)) {
-					DomainObject obj = archiveFile.getOpenedDomainObject(tool);
-					archive = ((ghidra.program.database.DataTypeArchiveDB)obj);
-					if(archive != null) {
-						this.dataTypeManager = archive.getDataTypeManager();
-					}				
+				DomainObject obj;
+				if(archiveFile.isOpen()) {
+					obj = archiveFile.getOpenedDomainObject(tool);
+				} else {
+					obj = archiveFile.getDomainObject(this,  true, true, null);
+				}
+				archive = ((ghidra.program.database.DataTypeArchiveDB)obj);
+				if(archive != null) {
+					this.dataTypeManager = (ProjectDataTypeManager)archive.getDataTypeManager();
 				}
 			} catch(Exception e) {
 				e.printStackTrace();
@@ -185,7 +202,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		//we create the object manager here so that the data type manager 
 		// is accessible, which is not the case unless a program is active
 		if(objectCache == null) {
-			objectCache = new ObjectCache(p.getDataTypeManager(), this);
+			objectCache = new ObjectCache(this.getDataTypeManager(), this);
 			objectCache.refresh();
 		}
 
@@ -260,6 +277,28 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 	}
 
 	public void runQuery(String queryName, String[] queryParams, MadnessQueryResultListener listener, String queryTag) {
+		MadnessQuery q = this.madness.getQuery(queryName);
+		if(q == null) {
+			return;
+		}
+		try {
+			MadnessQueryCommand cmd = new MadnessQueryCommand(q, queryParams, this.madness.getCurrentDB(), listener, queryTag);
+			this.getTool().executeBackgroundCommand(cmd, this.getCurrentProgram());
+		} catch(Exception exc) {
+			MadnessPlugin.LOG.error(exc.getMessage());
+		}
+	}
+
+	public void runMemorySearchQuery(byte[] searchString, MadnessMemorySearchQueryResultListener listener, String queryTag) {
+		try {
+			MadnessMemorySearchCommand cmd = new MadnessMemorySearchCommand(searchString, this.memory, listener, queryTag);
+			this.getTool().executeBackgroundCommand(cmd, this.getCurrentProgram());
+		} catch(Exception exc) {
+			MadnessPlugin.LOG.error(exc.getMessage());
+		}
+	}
+
+	public void runMemoryValueQuery(String queryName, String[] queryParams, MadnessQueryResultListener listener, String queryTag) {
 		MadnessQuery q = this.madness.getQuery(queryName);
 		if(q == null) {
 			return;

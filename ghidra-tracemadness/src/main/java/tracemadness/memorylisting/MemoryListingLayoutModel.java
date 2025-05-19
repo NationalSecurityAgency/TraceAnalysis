@@ -15,9 +15,11 @@ import org.json.JSONObject;
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
 import tracemadness.dataflowinfo.DataflowSpace;
+import tracemadness.dataflowinfo.DataflowSpaceMemoryByte;
 import tracemadness.dataflowinfo.DataflowSpaceOperation;
 import tracemadness.dataflowinfo.DataflowSpaceWithValueRange;
 import tracemadness.listingfield.SpacetimeOperationField;
+import tracemadness.memindex.MemoryValueQueryResult;
 import docking.widgets.fieldpanel.*;
 import docking.widgets.fieldpanel.field.*;
 import docking.widgets.fieldpanel.listener.LayoutModelListener;
@@ -41,10 +43,10 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 	private FontMetrics fontMetrics;
 	private FieldHighlightFactory hlFactory; 
 	private MemoryListingView view;
-	private List<DataflowSpaceWithValueRange> space;
-	private Map<BigInteger, Layout> layoutCache;
-	private Map<BigInteger, Long> indexToAddress;
-	private Map<Long, BigInteger> addressToIndex;
+	private List<DataflowSpaceMemoryByte> space;
+	private Map<BigInteger, Layout> layoutCache = new HashMap<>();;
+	private Map<BigInteger, Long> indexToAddress = new HashMap<>();;
+	private Map<Long, BigInteger> addressToIndex = new HashMap<>();;
 	
 	public MemoryListingLayoutModel(MadnessPlugin plugin, MemoryListingProvider provider, MemoryListingView view, FontMetrics fontMetrics) {
 		this.plugin = plugin;
@@ -71,11 +73,14 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 	}
 
 	private void loadSpace()  {
-		String[] params = { view.toAQLString() }; // TODO filters
 		this.space = new ArrayList<>();
 
 		try {
-			plugin.runQuery("fullspace", params, this, "space");
+			ArrayList<MemoryValueQueryResult> res = plugin.memory.getMemory(this.view.getViewParam(MemoryListingView.VIEW_PARAM.TICK.name()), this.view.getViewParam(MemoryListingView.VIEW_PARAM.ADDR_START.name()), this.view.getViewParam(MemoryListingView.VIEW_PARAM.LEN.name()), null, 10);
+			for(var r : res) {
+				this.space.addAll(r.bytes);				
+			}
+			this.reloadModel();
 		} catch(Exception e) {
 			e.printStackTrace();
 			return;
@@ -86,13 +91,12 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 		this.layoutCache = new HashMap<>();
 		this.indexToAddress = new HashMap<>();
 		this.addressToIndex = new HashMap<>();
-		List<DataflowSpace> events = new ArrayList<DataflowSpace>();
+		List<DataflowSpaceMemoryByte> events = new ArrayList<DataflowSpaceMemoryByte>();
 		events.addAll(this.space);
 		Collections.sort(events);
 		BigInteger index = BigInteger.ZERO;
 		for(int i = 0; i < events.size(); i++) {
-			DataflowSpace dt = events.get(i);
-			DataflowSpaceWithValueRange s = (DataflowSpaceWithValueRange) dt;
+			DataflowSpaceMemoryByte s = events.get(i);
 			this.layoutCache.put(index, getLayoutForSpace(s));
 			this.indexToAddress.put(index, s.addr);
 			this.addressToIndex.put(s.addr, index);
@@ -146,64 +150,27 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 		return null;
 	}
 
-	public Layout getLayoutForSpace(DataflowSpaceWithValueRange s) {	
-		String valstr;
+	public Layout getLayoutForSpace(DataflowSpaceMemoryByte s) {
 		int x = MemoryListingSettings.PAD_WIDTH;
 		int width = MemoryListingSettings.ADDR_FIELD_WIDTH;
 		String addrname = "";
 		HashSet<String> names = new HashSet<>();
-		for(DataflowSpaceOperation op : s.operations) {
-			String n = plugin.objectCache.getName(s.addr, (int)op.tick.longValue(), (int)op.size.longValue());
-			if(n != null) {
-				names.add(n);
-			}
-		}
-		for(String n : names) {
+		String n = plugin.objectCache.getName(s.addr, s.tick, 1);
+		if(n != null) {
 			addrname += " " + n;
 		}
-		addrname += String.format(":%d", s.size);
-		MemoryListingAddrField addrField = new MemoryListingAddrField(s.addr, String.format("0x%x%s", s.addr, addrname), x, width, fontMetrics, this.hlFactory);
+		
+		MemoryListingAddrField addrField = new MemoryListingAddrField(s.addr, s.tick, String.format("0x%x%s", s.addr, addrname), x, width, fontMetrics, this.hlFactory);
 		x += width;
-		width = MemoryListingSettings.ACCESSES_FIELD_WIDTH;
-		MemoryListingAccessesField readsField = new MemoryListingAccessesField(s.addr, false, String.format("%d read%s", s.reads, (s.reads == 1 ? "" : "s")), x, width, fontMetrics, this.hlFactory);
-		x += width;
-		width = MemoryListingSettings.ACCESSES_FIELD_WIDTH;
-		MemoryListingAccessesField writesField = new MemoryListingAccessesField(s.addr, true /* is_write */, String.format("%d writes", s.writes), x, width, fontMetrics, this.hlFactory);
-		x += width;
-		width = MemoryListingSettings.MINMAX_FIELD_WIDTH;
 		String desc = "";
-		String minvalstr = 0x30 <= s.minval && s.minval <= 0x7a ? String.format("0x%x '%s'", s.minval, Character.toString((char)s.minval.longValue())) : String.format("0x%x", s.minval);
-		String maxvalstr = 0x30 <= s.maxval && s.maxval <= 0x7a ? String.format("0x%x '%s'", s.maxval, Character.toString((char)s.maxval.longValue())) : String.format("0x%x", s.maxval);   
-		if(s.minval.equals(s.maxval)) {
-			desc = String.format("%s", minvalstr);
-		} else {
-			desc = String.format("%s - %s", minvalstr, maxvalstr);
-		}
-		MemoryListingAddrField minMaxField = new MemoryListingAddrField(s.addr, desc, x, width, fontMetrics, this.hlFactory);
+		String valstr = 0x30 <= s.value && s.value <= 0x7a ? String.format("0x%x '%s'", s.value, Character.toString((char)s.value)) : String.format("0x%x", s.value);
+		desc = String.format("%s", valstr);
+		MemoryListingAddrField valField = new MemoryListingAddrField(s.addr, s.tick, desc, x, width, fontMetrics, this.hlFactory);
 		x += width;
 		
 		ArrayList<Field> fields = new ArrayList<>();
 		fields.add(addrField);
-		fields.add(readsField);
-		fields.add(writesField);
-		fields.add(minMaxField);
-		int i = 0;
-		for(DataflowSpaceOperation op : s.operations) {
-			if(i < 11) {
-				valstr = String.format("0x%x", op.val); 
-				width = fontMetrics.charsWidth(valstr.toCharArray(), 0, valstr.length());
-				width += MemoryListingSettings.PAD_WIDTH;
-				MemoryListingOperationField sf = new MemoryListingOperationField(s.addr, op.index, op.tick, op.val, op.is_write, valstr, "Data value " + valstr, x, width, fontMetrics, this.hlFactory);
-				fields.add(sf);
-				x += width;
-			} else {
-				width = MemoryListingSettings.MINMAX_FIELD_WIDTH;
-				MemoryListingAddrField dotsField = new MemoryListingAddrField(s.addr, "...", x, width, fontMetrics, this.hlFactory);
-				fields.add(dotsField);
-				x += width;
-				break;
-			}
-		}
+		fields.add(valField);
 		Field[] fs = fields.toArray(new Field[0]);
 		RowLayout r = new RowLayout(fs, 0);
 		return r;
@@ -252,8 +219,10 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 		for(int i = 0; i < results.size(); i++) {
 			try {
 				JSONObject obj = results.get(i);
-				DataflowSpaceWithValueRange s = new DataflowSpaceWithValueRange(obj);
-				this.space.add(s);
+				MemoryValueQueryResult s = new MemoryValueQueryResult(obj);
+				for(var b : s.bytes) {
+					this.space.add(b);
+				}
 			} catch(Exception e) {
 				e.printStackTrace();
 				continue;

@@ -1,5 +1,6 @@
 package tracemadness.dataflowinfo;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 
 import org.json.JSONArray;
@@ -16,7 +17,6 @@ public class DataflowSpaceWithValueRange extends DataflowSpace {
 		addr = row.getBigInteger("addr").longValue();
 		reads = row.getLong("reads");
 		writes = row.getLong("writes");
-		size = row.getLong("size");
 		minval = row.getBigInteger("minval").longValue();
 		maxval = row.getBigInteger("maxval").longValue();
 		operations = new ArrayList<>();

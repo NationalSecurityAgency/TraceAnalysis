@@ -140,7 +140,7 @@ public class AccessListingLayoutModel implements LayoutModel, MadnessQueryResult
 
 	@Override
 	public Layout getLayout(BigInteger index) {
-		if(this.layoutCache.containsKey(index)) {
+		if(this.layoutCache != null && this.layoutCache.containsKey(index)) {
 			return this.layoutCache.get(index);
 		}
 		return null;
@@ -255,7 +255,8 @@ public class AccessListingLayoutModel implements LayoutModel, MadnessQueryResult
 				DataflowSpaceWithValueRange s = new DataflowSpaceWithValueRange(obj);
 				this.space.add(s);
 			} catch(Exception e) {
-				e.printStackTrace();
+				//e.printStackTrace();
+				// sometimes this happens, say, if we cannot deduce values, e.g. at the beginning of the trace; nothing to be done; it is fine. probably
 				continue;
 			}
 		}

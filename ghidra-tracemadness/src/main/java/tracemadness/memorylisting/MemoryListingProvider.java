@@ -27,8 +27,8 @@ import tracemadness.MadnessPlugin;
 import tracemadness.listingfield.SpacetimeAddrField;
 import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.listingfield.SpacetimeTickField;
-import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
+import tracemadness.memindex.MemorySearchResult;
+import tracemadness.memsearchlisting.MemSearchListingProvider;
 import tracemadness.timelisting.TimeListingSettings;
 import tracemadness.timelisting.TimeListingView;
 import docking.ActionContext;
@@ -46,6 +46,7 @@ import docking.widgets.fieldpanel.listener.FieldLocationListener;
 import docking.widgets.fieldpanel.listener.FieldSelectionListener;
 import docking.widgets.fieldpanel.support.*;
 import docking.widgets.indexedscrollpane.IndexedScrollPane;
+import generic.theme.GIcon;
 
 public class MemoryListingProvider 
 	extends ComponentProvider 
@@ -83,7 +84,7 @@ public class MemoryListingProvider
 		this.view = new MemoryListingView();
 		this.history = new ArrayList<>();
 		this.historyAdd(this.view);
-		
+
 		this.model = new MemoryListingLayoutModel(this.plugin, this, this.view, this.fontMetrics);
 		this.listingPanel = new FieldPanel(this.model, "Time listing");
 		this.listingPanel.setFont(font);
@@ -103,6 +104,7 @@ public class MemoryListingProvider
 		
 		// Make the GUI
 		buildSpaceListingPanel();
+		this.refresh();
 	}
 	
 	public void historyAdd(MemoryListingView v) {
@@ -152,6 +154,7 @@ public class MemoryListingProvider
 		this.view = view;
 		currentViewFooter.setText("Now viewing: " + this.view.toString());
 		this.model = new MemoryListingLayoutModel(this.plugin, this, view, this.fontMetrics);
+		this.refresh();
 	}
 	
 	public void refresh() {
@@ -257,28 +260,51 @@ public class MemoryListingProvider
 		navigationIncomingAction.setSelected(true);
 		this.addLocalAction(navigationIncomingAction);
 
+		// Go to tick
+		DockingAction gotoAction = new DockingAction("Go To Tick", getName()) {
+			@Override
+			public void actionPerformed(ActionContext arg0) {
+				Long tick = self.plugin.getUserInputLong("tick", "tick");
+				Long addr = self.plugin.getUserInputLong("addr", "addr");
+				Long len = self.plugin.getUserInputLong("len", "len");
+				if (tick != null && addr != null && len != null) {
+					self.showMemory(addr, len, tick);
+				}
+			}
+		};
+		gotoAction.setToolBarData(new ToolBarData(new GIcon("icon.plugin.datatypes.filter.pointers.off"), null));
+		gotoAction.setEnabled(true);
+		this.addLocalAction(gotoAction);
+
+		// Go to tick
+		DockingAction searchAction = new DockingAction("Search across space and time", getName()) {
+			@Override
+			public void actionPerformed(ActionContext arg0) {
+				String hex = self.plugin.getUserInputString("hex string", "hex string");
+				if (hex != null && hex.length() > 0) {
+					if(hex.length() % 2 != 0) {
+						throw new IllegalArgumentException("requires even-length hex string");
+					}
+					byte[] str = new byte[hex.length()/2];
+					for(int i = 0; i < hex.length(); i+=2) {
+						str[i/2] = Byte.parseByte(hex.substring(i, i+2), 16);
+					}
+					MemSearchListingProvider p = new MemSearchListingProvider(self.plugin, str);
+					p.addToTool();
+					p.setVisible(true);
+				}
+			}
+		};
+		searchAction.setToolBarData(new ToolBarData(new GIcon("icon.plugin.viewstrings.provider"), null));
+		searchAction.setEnabled(true);
+		this.addLocalAction(searchAction);
 	}
 
 	private void createContextActions() {
 		{
-		AccessorContextAction ar = new AccessorContextAction(this);
-		ar.setPopupMenuData(new MenuData(new String[] {"All address accessors"}, null, "addr"));
-		this.plugin.getTool().addAction(ar);
-		}
-		{
-		BackSliceContextAction bs = new BackSliceContextAction(this);
-		bs.setPopupMenuData(new MenuData(new String[] {"Backward slice"}, null, "operationrun"));
-		this.plugin.getTool().addAction(bs);
-		}
-		{
-		SliceContextAction fs = new SliceContextAction(this);
-		fs.setPopupMenuData(new MenuData(new String[] {"Forward Slice"}, null, "operationrun"));
-		this.plugin.getTool().addAction(fs);
-		}
-		{
-		GoToTimeWindowContextAction tw = new GoToTimeWindowContextAction(this);
-		tw.setPopupMenuData(new MenuData(new String[] {"Time window"}, null, "operationrun"));
-		this.plugin.getTool().addAction(tw);
+		GoToTickContextAction a = new GoToTickContextAction(this);
+		a.setPopupMenuData(new MenuData(new String[] {"Go to tick"}, null, "addr"));
+		this.plugin.getTool().addAction(a);
 		}
 	}
 	
@@ -300,7 +326,7 @@ public class MemoryListingProvider
 	
 	@Override
 	public void fieldLocationChanged(FieldLocation location, Field field, EventTrigger trigger) {
-	
+		if(field == null) return;
 		System.out.println("location -> " + location.toString() + " in " + field.toString());
 		location.getIndex();
 		// set the label to the field's full text
@@ -314,20 +340,29 @@ public class MemoryListingProvider
 	}
 	//---------------------------------------------------------------
 	// Here begin the API functions to call the  
-	public void showAccessesInRange(long start, long end) {
+	public void showMemory(long start, long len, long tick) {
 		HashMap<String, Long> params = new HashMap<>();
 		params.put(MemoryListingView.VIEW_PARAM.ADDR_START.name(), start);
-		params.put(MemoryListingView.VIEW_PARAM.ADDR_END.name(), end);
+		params.put(MemoryListingView.VIEW_PARAM.LEN.name(), len);
+		params.put(MemoryListingView.VIEW_PARAM.TICK.name(), tick);
+		this.newView(new MemoryListingView(MemoryListingView.VIEW_TYPE.ADDR_WINDOW_VIEW.name(), params));
+	}
+	// Here begin the API functions to call the  
+	public void setTick(long tick) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(MemoryListingView.VIEW_PARAM.ADDR_START.name(), this.view.getViewParam(MemoryListingView.VIEW_PARAM.ADDR_START.name()));
+		params.put(MemoryListingView.VIEW_PARAM.LEN.name(), this.view.getViewParam(MemoryListingView.VIEW_PARAM.LEN.name()));
+		params.put(MemoryListingView.VIEW_PARAM.TICK.name(), tick);
 		this.newView(new MemoryListingView(MemoryListingView.VIEW_TYPE.ADDR_WINDOW_VIEW.name(), params));
 	}
 	
 	//---------------------------------------------------------------
 	// Here begin the menu item action classes. 
 
-	private class AccessorContextAction extends AddrAction {
-		public AccessorContextAction(MemoryListingProvider provider) {
-			super(provider, "All Accessors", provider.plugin.getName());
-			setKeyBindingData(new KeyBindingData(KeyEvent.VK_A, InputEvent.ALT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK));
+	private class GoToTickContextAction extends AddrAction {
+		public GoToTickContextAction(MemoryListingProvider provider) {
+			super(provider, "Go to tick", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_T, InputEvent.ALT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK));
 		}
 		
 		@Override
@@ -336,7 +371,7 @@ public class MemoryListingProvider
 				MemoryListingActionContext tc = (MemoryListingActionContext) context; 
 				if(isValidContext(tc)) {
 					Field f = tc.getField();
-					if(f != null && f instanceof SpacetimeAddrField) {
+					if(f != null && f instanceof MemoryListingAddrField) {
 						return true;
 					}
 				}
@@ -349,104 +384,11 @@ public class MemoryListingProvider
 			System.out.println("accessors " + context.toString());
 			MemoryListingActionContext tc = (MemoryListingActionContext) context; 
 			Field f = tc.getField();
-			SpacetimeAddrField sf = (SpacetimeAddrField) f;
-			long addr = sf.getAddr();
-			provider.plugin.timeListingProvider.showAccessors(addr);
-		}
-		
-	}
-
-	// A right-click menu action class should extend the OperationAction 
-	// class to be available whenever anything with a corresponding operationrun 
-	// is right-clicked on  
-	private abstract class OperationAction extends DockingAction {
-		MemoryListingProvider provider;
-		public OperationAction(MemoryListingProvider provider, String name, String owner) {
-			super(name, owner, true);
-			this.provider = provider;
-		}
-		
-		@Override
-		public boolean isEnabledForContext(ActionContext context) {
-			if(context instanceof MemoryListingActionContext) {
-				MemoryListingActionContext tc = (MemoryListingActionContext) context; 
-				if(isValidContext(tc)) {
-					Field f = tc.getField();
-					if(f != null && f instanceof SpacetimeOperationField) {
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-
-		@Override
-		public boolean isAddToPopup(ActionContext context) {
-			return context instanceof MemoryListingActionContext;
-		}
-	}
-
-	private class GoToTimeWindowContextAction extends OperationAction {
-		public GoToTimeWindowContextAction(MemoryListingProvider provider) {
-			super(provider, "Go To Memory Operation in Trace", provider.plugin.getName());
-			setKeyBindingData(new KeyBindingData(KeyEvent.VK_T, 0));
-		}
-
-		@Override
-		public void actionPerformed(ActionContext context) {
-			MemoryListingActionContext tc = (MemoryListingActionContext) context; 
-			Field f = tc.getField();
-			if(!(f instanceof SpacetimeTickField)) {
-				return;
-			}
 			SpacetimeTickField sf = (SpacetimeTickField) f;
 			long tick = sf.getTick();
-			System.out.println("slice " + f.toString());
-			Map<String, Long> params = new HashMap<>();
-			params.put(TimeListingView.VIEW_PARAM.TIME_START.name(), tick-TimeListingSettings.TIME_WINDOW_RADIUS);
-			params.put(TimeListingView.VIEW_PARAM.TIME_END.name(), tick+TimeListingSettings.TIME_WINDOW_RADIUS);
-			TimeListingView v = new TimeListingView(TimeListingView.VIEW_TYPE.TIME_WINDOW_VIEW.name(), params);
-			v.lastTick = tick;
-			this.provider.plugin.timeListingProvider.newView(v);
+			provider.plugin.timeListingProvider.goToTick(tick);
 		}
-	}
-	private class SliceContextAction extends OperationAction {
-		public SliceContextAction(MemoryListingProvider provider) {
-			super(provider, "Forward Slice Memory Operation in Trace", provider.plugin.getName());
-			setKeyBindingData(new KeyBindingData(KeyEvent.VK_F, 0));
-		}
-
-		@Override
-		public void actionPerformed(ActionContext context) {
-			MemoryListingActionContext tc = (MemoryListingActionContext) context; 
-			Field f = tc.getField();
-			SpacetimeOperationField sf = (SpacetimeOperationField) f;
-			long index = sf.getIndex();
-			System.out.println("slice " + f.toString());
-			Map<String, Long> params = new HashMap<>();
-			params.put(TimeListingView.VIEW_PARAM.INDEX.name(), index);
-			params.put(TimeListingView.VIEW_PARAM.DEPTH.name(), (long)(int)this.provider.plugin.sliceDepthSetting.getValue());
-			this.provider.plugin.timeListingProvider.newView(new TimeListingView(TimeListingView.VIEW_TYPE.FORWARDSSLICE_VIEW.name(), params));
-		}
-	}
-	private class BackSliceContextAction extends OperationAction {
-		public BackSliceContextAction(MemoryListingProvider provider) {
-			super(provider, "Backward Slice Memory Operation in Trace", provider.plugin.getName());
-			setKeyBindingData(new KeyBindingData(KeyEvent.VK_B, 0));
-		}
-
-		@Override
-		public void actionPerformed(ActionContext context) {
-			MemoryListingActionContext tc = (MemoryListingActionContext) context; 
-			Field f = tc.getField();
-			SpacetimeOperationField sf = (SpacetimeOperationField) f;
-			long index = sf.getIndex();
-			System.out.println("backslice " + f.toString());
-			Map<String, Long> params = new HashMap<>();
-			params.put(TimeListingView.VIEW_PARAM.INDEX.name(), index);
-			params.put(TimeListingView.VIEW_PARAM.DEPTH.name(), (long)(int)this.provider.plugin.sliceDepthSetting.getValue());
-			this.provider.plugin.timeListingProvider.newView(new TimeListingView(TimeListingView.VIEW_TYPE.BACKWARDSSLICE_VIEW.name(), params));
-		}
+		
 	}
 
 	
@@ -469,32 +411,6 @@ public class MemoryListingProvider
 					if(f != null && f instanceof SpacetimeAddrField) {
 						return true;
 					}
-				}
-			}
-			return false;
-		}
-
-		@Override
-		public boolean isAddToPopup(ActionContext context) {
-			return context instanceof MemoryListingActionContext;
-		}
-	}
-
-	// A right-click menu action class should extend the RangeAction class to be available 
-	// whenever there is a right-click with an active selection  
-	private abstract class RangeAction extends DockingAction {
-		MemoryListingProvider provider;
-		public RangeAction(MemoryListingProvider provider, String name, String owner) {
-			super(name, owner);
-			this.provider = provider;
-		}
-		
-		@Override
-		public boolean isEnabledForContext(ActionContext context) {
-			if(context instanceof MemoryListingActionContext) {
-				MemoryListingActionContext tc = (MemoryListingActionContext) context; 
-				if(isValidContext(tc)) {
-					return this.provider.listingPanel.getSelection() != null;
 				}
 			}
 			return false;
