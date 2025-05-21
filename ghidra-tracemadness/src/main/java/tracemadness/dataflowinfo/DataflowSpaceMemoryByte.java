@@ -1,8 +1,5 @@
 package tracemadness.dataflowinfo;
 
-import java.math.BigInteger;
-import java.util.ArrayList;
-
 
 public class DataflowSpaceMemoryByte extends DataflowSpace {
 	public long tick;

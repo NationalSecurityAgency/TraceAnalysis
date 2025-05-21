@@ -42,7 +42,9 @@ public class ModuleMap implements MadnessQueryResultListener {
 	public ModuleInfo getModuleByPath(String path) {
 		return modulesByPath.get(path);
 	}
-	
+	public TreeMap<Long, ModuleInfo> getModules() {
+		return modules;
+	}
 	public void refresh() {
 		try {
 			plugin.runQuery("modules", new String[] {}, this, "modules");

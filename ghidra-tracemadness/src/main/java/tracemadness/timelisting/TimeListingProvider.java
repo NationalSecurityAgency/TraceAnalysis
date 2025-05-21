@@ -39,10 +39,12 @@ import resources.Icons;
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
 import tracemadness.accesslisting.AccessListingView;
+import tracemadness.dataflowinfo.DataflowEffect.DataflowEffectType;
 import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.listingfield.SpacetimePCField;
 import tracemadness.listingfield.SpacetimeTickField;
 import tracemadness.objectdata.ObjectInfo;
+import tracemadness.objectdata.ObjectWitness;
 import tracemadness.slicelisting.SliceListingProvider;
 import docking.ActionContext;
 import docking.ComponentProvider;
@@ -84,16 +86,18 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 	private ToggleDockingAction instructionDisplayToggleAction;
 	private List<TimeListingView> history;
 	private int historyCursor;
+	private boolean guiInited;
 
 	public TimeListingProvider(MadnessPlugin plugin, String name) {
 		// TODO what is the "owner" third parameter here supposed to be?
 		super(plugin.getTool(), name, name);
+		this.guiInited = false;
 		this.plugin = plugin;
 		this.mainPanel = new JPanel();
 		font = new Font("Monospaced", Font.PLAIN, 14);
 		this.mainPanel.setFont(font);
 		this.fontMetrics = this.mainPanel.getFontMetrics(font);
-
+		
 		// init the decompiler (which we will use to generate function entries in the
 		// layout)
 		decompCache = new HashMap<Address, HighFunction>();
@@ -125,8 +129,10 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 		this.listingPanel.setHoverProvider(this);
 
 		((TimeListingLayoutModel)this.model).loadInstructions();
+		
 		// Make the GUI
 		buildTimeListingPanel();
+		guiInited = true;
 	}
 
 	public Long getCurrentTick() {
@@ -193,6 +199,8 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 	}
 	
 	public void refresh() {
+		if(this.listingPanel == null) return;
+		if(this.scroller == null) return;
 		this.listingPanel.setLayoutModel(this.model);
 		this.scroller.indexModelChanged();
 		if (this.view.lastTick != null && this.listingPanel != null) {
@@ -451,6 +459,21 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			tw.setPopupMenuData(new MenuData(new String[] { "Time window" }, null, "tick"));
 			this.plugin.getTool().addAction(tw);
 		}
+		{
+			CreateBirthWitnessContextAction a = new CreateBirthWitnessContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Create object-birth witness of known type" }, null, "witness"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			CreateDeathWitnessContextAction a = new CreateDeathWitnessContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Create object-death witness of known type" }, null, "witness"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			CreateChangeWitnessContextAction a = new CreateChangeWitnessContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Create object-change witness of known type" }, null, "witness"));
+			this.plugin.getTool().addAction(a);
+		}
 		
 		{
 			SetCodeStartTickContextAction a = new SetCodeStartTickContextAction(this);
@@ -618,7 +641,7 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 
 	@Override
 	public void fieldLocationChanged(FieldLocation location, Field field, EventTrigger trigger) {
-		if(location == null) {
+		if(location == null || field == null || !guiInited) {
 			return;
 		}
 		location.getIndex();
@@ -676,6 +699,13 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 		params.put(TimeListingView.VIEW_PARAM.TIME_END.name(), tick + TimeListingSettings.TIME_WINDOW_RADIUS);
 		TimeListingView v = new TimeListingView(TimeListingView.VIEW_TYPE.TIME_WINDOW_VIEW.name(), params);
 		v.lastTick = tick;
+		this.newView(v);
+	}
+	public void showAddrWindow(long start, long end) {
+		Map<String, Long> params = new HashMap<>();
+		params.put(TimeListingView.VIEW_PARAM.ADDR_START.name(), start);
+		params.put(TimeListingView.VIEW_PARAM.ADDR_END.name(), end);
+		TimeListingView v = new TimeListingView(TimeListingView.VIEW_TYPE.ADDR_WINDOW_VIEW.name(), params);
 		this.newView(v);
 	}
 	public void showPath(ArrayList<Long> indices) {
@@ -1596,6 +1626,129 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 		}
 	}
 
+	private class CreateBirthWitnessContextAction extends OperationAction {
+		public CreateBirthWitnessContextAction(TimeListingProvider provider) {
+			super(provider, "Create Witness", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_W, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			TimeListingOperationField  sf = (TimeListingOperationField) f;
+			Long pc = sf.getPC();
+			ProgramLocation loc = plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(pc), false);
+			String module = loc.getProgram().getDomainFile().getPathname();
+			long offset = loc.getAddress().getOffset()-loc.getProgram().getImageBase().getOffset();
+			Integer reg = null;
+			ObjectWitness.insFeature feature; 
+			switch(sf.getEffectType()) {
+			case DataflowEffectType.REG_WRITE:
+				reg = (int)(long)sf.getDest();
+				feature = ObjectWitness.insFeature.REG_WRITE;
+				break;
+			case DataflowEffectType.MEM_WRITE:
+				feature = ObjectWitness.insFeature.STORE_VAL;
+				break;
+			case DataflowEffectType.MEM_READ:
+				feature = ObjectWitness.insFeature.LOAD_VAL;
+				break;
+			case DataflowEffectType.MEM_ACCESS:
+				if(sf.isWrite()) feature = ObjectWitness.insFeature.LOAD_ADDR;
+				else feature = ObjectWitness.insFeature.STORE_ADDR;
+				break;
+			default:
+				return;
+			}
+			DataType ty = provider.plugin.getUserInputDataType();
+			if (ty == null)
+				return;
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.BIRTH, feature, reg, ty, module, offset);
+			plugin.madness.setWitness(w);
+		}
+	}
+	private class CreateDeathWitnessContextAction extends OperationAction {
+		public CreateDeathWitnessContextAction(TimeListingProvider provider) {
+			super(provider, "Create Witness", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_W, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			TimeListingOperationField  sf = (TimeListingOperationField) f;
+			Long pc = sf.getPC();
+			ProgramLocation loc = plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(pc), false);
+			String module = loc.getProgram().getDomainFile().getPathname();
+			long offset = loc.getAddress().getOffset()-loc.getProgram().getImageBase().getOffset();
+			Integer reg = null;
+			ObjectWitness.insFeature feature; 
+			switch(sf.getEffectType()) {
+			case DataflowEffectType.REG_WRITE:
+				reg = (int)(long)sf.getDest();
+				feature = ObjectWitness.insFeature.REG_WRITE;
+				break;
+			case DataflowEffectType.MEM_WRITE:
+				feature = ObjectWitness.insFeature.STORE_VAL;
+				break;
+			case DataflowEffectType.MEM_READ:
+				feature = ObjectWitness.insFeature.LOAD_VAL;
+				break;
+			case DataflowEffectType.MEM_ACCESS:
+				if(sf.isWrite()) feature = ObjectWitness.insFeature.LOAD_ADDR;
+				else feature = ObjectWitness.insFeature.STORE_ADDR;
+				break;
+			default:
+				return;
+			}
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.DEATH, feature, reg, null, module, offset);
+			plugin.madness.setWitness(w);
+		}
+	}
+	private class CreateChangeWitnessContextAction extends OperationAction {
+		public CreateChangeWitnessContextAction(TimeListingProvider provider) {
+			super(provider, "Create Witness", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_W, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			TimeListingOperationField  sf = (TimeListingOperationField) f;
+			Long pc = sf.getPC();
+			ProgramLocation loc = plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(pc), false);
+			String module = loc.getProgram().getDomainFile().getPathname();
+			long offset = loc.getAddress().getOffset()-loc.getProgram().getImageBase().getOffset();
+			Integer reg = null;
+			ObjectWitness.insFeature feature; 
+			switch(sf.getEffectType()) {
+			case DataflowEffectType.REG_WRITE:
+				reg = (int)(long)sf.getDest();
+				feature = ObjectWitness.insFeature.REG_WRITE;
+				break;
+			case DataflowEffectType.MEM_WRITE:
+				feature = ObjectWitness.insFeature.STORE_VAL;
+				break;
+			case DataflowEffectType.MEM_READ:
+				feature = ObjectWitness.insFeature.LOAD_VAL;
+				break;
+			case DataflowEffectType.MEM_ACCESS:
+				if(sf.isWrite()) feature = ObjectWitness.insFeature.LOAD_ADDR;
+				else feature = ObjectWitness.insFeature.STORE_ADDR;
+				break;
+			default:
+				return;
+			}
+			DataType ty = provider.plugin.getUserInputDataType();
+			if (ty == null)
+				return;
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.CHANGE, feature, reg, ty, module, offset);
+			plugin.madness.setWitness(w);
+		}
+	}
 	private class AllPCRunsContextAction extends PCAction {
 		public AllPCRunsContextAction(TimeListingProvider provider) {
 			super(provider, "All PC Runs in Trace", provider.plugin.getName());

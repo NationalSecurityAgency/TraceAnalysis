@@ -1,8 +1,8 @@
-package tracemadness.spacelisting;
+package tracemadness.newaccesslisting;
 
 import java.awt.Color;
 
-public class SpaceListingSettings {
+public class AccessListingSettings {
 	// TODO expose these as settings or get them from the ghidra theme or something
 	public static final int MAX_WIDTH = 2800;
 	public static final int ADDR_FIELD_WIDTH = 500;

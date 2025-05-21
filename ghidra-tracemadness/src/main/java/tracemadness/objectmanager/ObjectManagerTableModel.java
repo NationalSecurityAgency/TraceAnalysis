@@ -145,7 +145,7 @@ public class ObjectManagerTableModel extends ThreadedTableModel<ObjectInfo, Madn
 	protected void doLoad(Accumulator<ObjectInfo> accumulator, TaskMonitor monitor)
 			throws CancelledException {
 		try {
-			List<ObjectInfo> arr = this.plugin.objectCache.getObjects();
+			List<ObjectInfo> arr = this.plugin.getObjectCache().getObjects();
 			for(ObjectInfo o : arr) {
 				accumulator.add(o);
 			}

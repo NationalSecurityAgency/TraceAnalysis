@@ -30,6 +30,7 @@ struct Args {
 #[derive(Deserialize, Debug)]
 struct Request {
     buffer: Option<Vec<u8>>,
+    mem_bank: Option<u64>, // 0 for reg, 1 for mem
     mem_tick: Option<u64>,
     mem_base: Option<u64>,
     mem_len: Option<u64>,
@@ -75,7 +76,12 @@ fn get_string_index(index: &str) -> Result<StringIndex<()>> {
     Ok(StringIndex::deserialize(&buffer[..]))
 }
 
-fn handle_client(mut stream: TcpStream, mem: Arc<SpacetimeRTree>, strs: Arc<StringIndex<()>>) {
+fn handle_client(
+    mut stream: TcpStream,
+    reg: Arc<SpacetimeRTree>,
+    mem: Arc<SpacetimeRTree>,
+    strs: Arc<StringIndex<()>>,
+) {
     let mut msg_buffer = [0; 65536];
     let mut len_buffer = [0u8; 4];
     loop {
@@ -130,32 +136,40 @@ fn handle_client(mut stream: TcpStream, mem: Arc<SpacetimeRTree>, strs: Arc<Stri
                     response.buffer_addrs.push(results[i].address);
                 }
             }
-            if let Some(addr) = request.mem_base {
-                if let Some(len) = request.mem_len {
-                    if let Some(tick) = request.mem_tick {
-                        let results = mem.find(tick, addr, addr + len);
-                        let mut ans = vec![0u8; len as usize];
-                        let mut ticks = vec![0u64; len as usize];
-                        let mut addrs = vec![0u64; len as usize];
-                        for op in results.iter() {
-                            let mut i = 0;
-                            for x in op.data.iter() {
-                                if op.address + i >= addr && op.address + i < addr + len {
-                                    let offset = (op.address + i - addr) as usize;
-                                    if op.created_at > ticks[offset] {
-                                        addrs[offset] = op.address + i;
-                                        ticks[offset] = op.created_at;
-                                        ans[offset] = *x;
-                                    } else {
-                                        addrs[offset] = op.address + i;
+            if let Some(bank) = request.mem_bank {
+                if bank == 0 || bank == 1 {
+                    let is_reg: bool = bank == 0;
+                    if let Some(addr) = request.mem_base {
+                        if let Some(len) = request.mem_len {
+                            if let Some(tick) = request.mem_tick {
+                                let results = match is_reg {
+                                    true => reg.find(tick, addr, addr + len),
+                                    false => mem.find(tick, addr, addr + len),
+                                };
+                                let mut ans = vec![0u8; len as usize];
+                                let mut ticks = vec![0u64; len as usize];
+                                let mut addrs = vec![0u64; len as usize];
+                                for op in results.iter() {
+                                    let mut i = 0;
+                                    for x in op.data.iter() {
+                                        if op.address + i >= addr && op.address + i < addr + len {
+                                            let offset = (op.address + i - addr) as usize;
+                                            if op.created_at > ticks[offset] {
+                                                addrs[offset] = op.address + i;
+                                                ticks[offset] = op.created_at;
+                                                ans[offset] = *x;
+                                            } else {
+                                                addrs[offset] = op.address + i;
+                                            }
+                                        }
+                                        i += 1;
                                     }
                                 }
-                                i += 1;
+                                response.mem_results = ans;
+                                response.mem_ticks = ticks;
+                                response.mem_addrs = addrs;
                             }
                         }
-                        response.mem_results = ans;
-                        response.mem_ticks = ticks;
-                        response.mem_addrs = addrs;
                     }
                 }
             }
@@ -188,17 +202,19 @@ fn main() {
     let str_index = get_string_index(args.str_index.clone().as_str()).unwrap();
     let strs = Arc::new(str_index);
 
-    let (_reg_index, mem_index) = get_st_index_spaces(&args.st_index.clone().as_str()).unwrap();
+    let (reg_index, mem_index) = get_st_index_spaces(&args.st_index.clone().as_str()).unwrap();
+    let reg = Arc::new(reg_index);
     let mem = Arc::new(mem_index);
 
     let listener = TcpListener::bind(format!("127.0.0.1:{}", args.port)).unwrap();
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
+        let reg = Arc::clone(&reg);
         let mem = Arc::clone(&mem);
         let strs = Arc::clone(&strs);
         std::thread::spawn(move || {
-            handle_client(stream, mem, strs);
+            handle_client(stream, reg, mem, strs);
         });
     }
 }

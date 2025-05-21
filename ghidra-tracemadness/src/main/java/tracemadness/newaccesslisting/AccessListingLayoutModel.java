@@ -1,4 +1,4 @@
-package tracemadness.spacelisting;
+package tracemadness.newaccesslisting;
 
 import java.awt.Dimension;
 import java.awt.FontMetrics;
@@ -34,19 +34,19 @@ import docking.widgets.fieldpanel.support.*;
  */
 
 @SuppressWarnings("serial")
-public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultListener {
+public class AccessListingLayoutModel implements LayoutModel, MadnessQueryResultListener {
 
 	public MadnessPlugin plugin;
-	private SpaceListingProvider provider;
+	private AccessListingProvider provider;
 	private FontMetrics fontMetrics;
 	private FieldHighlightFactory hlFactory; 
-	private SpaceListingView view;
+	private AccessListingView view;
 	private List<DataflowSpaceWithValueRange> space;
 	private Map<BigInteger, Layout> layoutCache;
 	private Map<BigInteger, Long> indexToAddress;
 	private Map<Long, BigInteger> addressToIndex;
 	
-	public SpaceListingLayoutModel(MadnessPlugin plugin, SpaceListingProvider provider, SpaceListingView view, FontMetrics fontMetrics) {
+	public AccessListingLayoutModel(MadnessPlugin plugin, AccessListingProvider provider, AccessListingView view, FontMetrics fontMetrics) {
 		this.plugin = plugin;
 		this.provider = provider;
 		this.view = view;
@@ -115,7 +115,7 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 
 	@Override
 	public Dimension getPreferredViewSize() {
-		return new Dimension(SpaceListingSettings.MAX_WIDTH, 500);
+		return new Dimension(AccessListingSettings.MAX_WIDTH, 500);
 	}
 
 	@Override
@@ -140,7 +140,7 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 
 	@Override
 	public Layout getLayout(BigInteger index) {
-		if(this.layoutCache.containsKey(index)) {
+		if(this.layoutCache != null && this.layoutCache.containsKey(index)) {
 			return this.layoutCache.get(index);
 		}
 		return null;
@@ -148,12 +148,12 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 
 	public Layout getLayoutForSpace(DataflowSpaceWithValueRange s) {	
 		String valstr;
-		int x = SpaceListingSettings.PAD_WIDTH;
-		int width = SpaceListingSettings.ADDR_FIELD_WIDTH;
+		int x = AccessListingSettings.PAD_WIDTH;
+		int width = AccessListingSettings.ADDR_FIELD_WIDTH;
 		String addrname = "";
 		HashSet<String> names = new HashSet<>();
 		for(DataflowSpaceOperation op : s.operations) {
-			String n = plugin.objectCache.getName(s.addr, (int)op.tick.longValue(), (int)op.size.longValue());
+			String n = plugin.getObjectCache().getName(s.addr, (int)op.tick.longValue(), (int)op.size.longValue());
 			if(n != null) {
 				names.add(n);
 			}
@@ -162,15 +162,15 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 			addrname += " " + n;
 		}
 		addrname += String.format(":%d", s.size);
-		SpaceListingAddrField addrField = new SpaceListingAddrField(s.addr, String.format("0x%x%s", s.addr, addrname), x, width, fontMetrics, this.hlFactory);
+		AccessListingAddrField addrField = new AccessListingAddrField(s.addr, String.format("0x%x%s", s.addr, addrname), x, width, fontMetrics, this.hlFactory);
 		x += width;
-		width = SpaceListingSettings.ACCESSES_FIELD_WIDTH;
-		SpaceListingAccessesField readsField = new SpaceListingAccessesField(s.addr, false, String.format("%d read%s", s.reads, (s.reads == 1 ? "" : "s")), x, width, fontMetrics, this.hlFactory);
+		width = AccessListingSettings.ACCESSES_FIELD_WIDTH;
+		AccessListingAccessesField readsField = new AccessListingAccessesField(s.addr, false, String.format("%d read%s", s.reads, (s.reads == 1 ? "" : "s")), x, width, fontMetrics, this.hlFactory);
 		x += width;
-		width = SpaceListingSettings.ACCESSES_FIELD_WIDTH;
-		SpaceListingAccessesField writesField = new SpaceListingAccessesField(s.addr, true /* is_write */, String.format("%d writes", s.writes), x, width, fontMetrics, this.hlFactory);
+		width = AccessListingSettings.ACCESSES_FIELD_WIDTH;
+		AccessListingAccessesField writesField = new AccessListingAccessesField(s.addr, true /* is_write */, String.format("%d writes", s.writes), x, width, fontMetrics, this.hlFactory);
 		x += width;
-		width = SpaceListingSettings.MINMAX_FIELD_WIDTH;
+		width = AccessListingSettings.MINMAX_FIELD_WIDTH;
 		String desc = "";
 		String minvalstr = 0x30 <= s.minval && s.minval <= 0x7a ? String.format("0x%x '%s'", s.minval, Character.toString((char)s.minval.longValue())) : String.format("0x%x", s.minval);
 		String maxvalstr = 0x30 <= s.maxval && s.maxval <= 0x7a ? String.format("0x%x '%s'", s.maxval, Character.toString((char)s.maxval.longValue())) : String.format("0x%x", s.maxval);   
@@ -179,7 +179,7 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 		} else {
 			desc = String.format("%s - %s", minvalstr, maxvalstr);
 		}
-		SpaceListingAddrField minMaxField = new SpaceListingAddrField(s.addr, desc, x, width, fontMetrics, this.hlFactory);
+		AccessListingAddrField minMaxField = new AccessListingAddrField(s.addr, desc, x, width, fontMetrics, this.hlFactory);
 		x += width;
 		
 		ArrayList<Field> fields = new ArrayList<>();
@@ -192,13 +192,13 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 			if(i < 11) {
 				valstr = String.format("0x%x", op.val); 
 				width = fontMetrics.charsWidth(valstr.toCharArray(), 0, valstr.length());
-				width += SpaceListingSettings.PAD_WIDTH;
-				SpaceListingOperationField sf = new SpaceListingOperationField(s.addr, op.index, op.tick, op.val, op.is_write, valstr, "Data value " + valstr, x, width, fontMetrics, this.hlFactory);
+				width += AccessListingSettings.PAD_WIDTH;
+				AccessListingOperationField sf = new AccessListingOperationField(s.addr, op.index, op.tick, op.val, op.is_write, valstr, "Data value " + valstr, x, width, fontMetrics, this.hlFactory);
 				fields.add(sf);
 				x += width;
 			} else {
-				width = SpaceListingSettings.MINMAX_FIELD_WIDTH;
-				SpaceListingAddrField dotsField = new SpaceListingAddrField(s.addr, "...", x, width, fontMetrics, this.hlFactory);
+				width = AccessListingSettings.MINMAX_FIELD_WIDTH;
+				AccessListingAddrField dotsField = new AccessListingAddrField(s.addr, "...", x, width, fontMetrics, this.hlFactory);
 				fields.add(dotsField);
 				x += width;
 				break;
@@ -255,7 +255,8 @@ public class SpaceListingLayoutModel implements LayoutModel, MadnessQueryResultL
 				DataflowSpaceWithValueRange s = new DataflowSpaceWithValueRange(obj);
 				this.space.add(s);
 			} catch(Exception e) {
-				e.printStackTrace();
+				//e.printStackTrace();
+				// sometimes this happens, say, if we cannot deduce values, e.g. at the beginning of the trace; nothing to be done; it is fine. probably
 				continue;
 			}
 		}

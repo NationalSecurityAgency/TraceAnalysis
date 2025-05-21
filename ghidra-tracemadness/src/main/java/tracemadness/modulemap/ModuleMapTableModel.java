@@ -20,7 +20,7 @@ import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
 
 @SuppressWarnings("serial")
-public class ModuleMapTableModel extends AddressBasedTableModel<ModuleInfo> implements MadnessQueryResultListener {
+public class ModuleMapTableModel extends AddressBasedTableModel<ModuleInfo> {
 
 	public Address referenceAddress = null;
 	public Program currentProgram;
@@ -33,8 +33,8 @@ public class ModuleMapTableModel extends AddressBasedTableModel<ModuleInfo> impl
 		this.currentProgram = program;
 		this.plugin = plugin;
 		this.map = m;
-		this.modules = new ArrayList<>();
-		this.plugin.runQuery("modules",  new String[] {}, this,  "modules");
+		this.modules = new ArrayList<>(); 
+		this.modules.addAll(this.plugin.moduleMap.getModules().sequencedValues());
 	}
 
 	@Override
@@ -100,33 +100,8 @@ public class ModuleMapTableModel extends AddressBasedTableModel<ModuleInfo> impl
 	@Override
 	protected void doLoad(Accumulator<ModuleInfo> accumulator, TaskMonitor monitor)
 			throws CancelledException {
-		for(ModuleInfo i : this.modules) {
+		for(ModuleInfo i : this.plugin.moduleMap.getModules().sequencedValues()) {
 			accumulator.add(i);
 		}
-	}
-
-	@Override
-	public void queryCompleted(List<JSONObject> results, String tag) {
-		this.modules = new ArrayList<>();
-
-		int length = results.size();
-		long prevBase = Long.MAX_VALUE;
-		for(int i = 0; i < length; i++) {
-			JSONObject modJson = results.get(length-1 - i);
-			String name = modJson.getString("name");
-			String path = modJson.getString("path");
-			long base = modJson.getBigInteger("base").longValue();
-			long size = 0;
-			if (modJson.has("size")) {
-				size = modJson.getLong("size");
-			} else {
-				size = prevBase - base;					
-			}
-			ModuleInfo m = new ModuleInfo(name, path, base, size);
-			this.modules.add(m);
-			prevBase = base;
-		}
-
-		this.reload();
 	}
 }

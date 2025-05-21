@@ -1,14 +1,14 @@
-package tracemadness.spacelisting;
+package tracemadness.newaccesslisting;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import tracemadness.View;
 
-public class SpaceListingView implements View {
+public class AccessListingView implements View {
 
 	public static enum VIEW_TYPE {
-		ADDR_WINDOW_VIEW, TIME_WINDOW_VIEW, ADDR_TIME_WINDOW_VIEW, FUNCTION_RUN_VIEW, VALUE_VIEW
+		ADDR_WINDOW_VIEW, PC_WINDOW_VIEW, TIME_WINDOW_VIEW, ADDR_TIME_WINDOW_VIEW, PC_TIME_WINDOW_VIEW, FUNCTION_RUN_VIEW, VALUE_VIEW
 	}
 
 	public static enum VIEW_PARAM {
@@ -20,14 +20,14 @@ public class SpaceListingView implements View {
 
 	public Map<String, Long> viewParams;
 
-	public SpaceListingView() {
+	public AccessListingView() {
 		this.viewType = VIEW_TYPE.TIME_WINDOW_VIEW;
 		this.viewParams = new HashMap<String, Long>();
 		this.viewParams.put(VIEW_PARAM.TIME_START.name(), 1L);
 		this.viewParams.put(VIEW_PARAM.TIME_END.name(), 100L);
 	}
 
-	public SpaceListingView(String ty, Map<String, Long> params) {
+	public AccessListingView(String ty, Map<String, Long> params) {
 		this.viewType = VIEW_TYPE.valueOf(ty);
 		this.viewParams = new HashMap<String, Long>(params);
 	}
@@ -38,12 +38,22 @@ public class SpaceListingView implements View {
 			return String.format("Address in [0x%x, 0x%x]",
 					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
 					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
+		case PC_WINDOW_VIEW:
+			return String.format("PC in [0x%x, 0x%x]",
+					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
+					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
 		case TIME_WINDOW_VIEW:
 			return String.format("Tick in [%d, %d]",
 					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
 					this.viewParams.get(VIEW_PARAM.TIME_END.name()));
 		case ADDR_TIME_WINDOW_VIEW:
-			return String.format("Tick in [%d, %d], address in [%d, %d]",
+			return String.format("Tick in [%d, %d], address in [0x%x, 0x%x]",
+					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
+					this.viewParams.get(VIEW_PARAM.TIME_END.name()),
+					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
+					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
+		case PC_TIME_WINDOW_VIEW:
+			return String.format("Tick in [%d, %d], PC in [0x%x, 0x%x]",
 					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
 					this.viewParams.get(VIEW_PARAM.TIME_END.name()),
 					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
@@ -65,6 +75,13 @@ public class SpaceListingView implements View {
 					+ "  for op in operationruns filter op.addr == n or op.assocd_addr == n\n",
 					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
 					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
+		case PC_WINDOW_VIEW:
+			return String.format("for n in range(%d, %d)\n"
+					+ "  for ins in instructionruns filter ins.pc == n \n"
+					+ "  for op in operationruns filter op.tick == ins.tick \n"
+					+ "  filter (op.opcode == 2 or op.opcode == 3 or op.opcode == 74)\n",
+					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
+					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
 		case TIME_WINDOW_VIEW:
 			return String.format("for n in range(%d, %d)\n"
 					+ "  for op in operationruns filter op.tick == n \n"
@@ -80,6 +97,20 @@ public class SpaceListingView implements View {
 					+ "  for op in operationruns filter op.tick >= inittick and op.tick <= finaltick \n"
 					+ "  filter (op.opcode == 2 and op.assocd_addr >= initaddr and op.assocd_addr < finaladdr)\n"
 					+ "  	or (op.bank == 1 and op.addr >= initaddr and op.addr < finaladdr)\n",
+					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
+					this.viewParams.get(VIEW_PARAM.TIME_END.name()),
+					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
+					this.viewParams.get(VIEW_PARAM.ADDR_END.name()));
+		case PC_TIME_WINDOW_VIEW:
+			return String.format("let inittick=%d\n"
+					+ "let finaltick=%d\n"
+					+ "let initaddr=%d\n"
+					+ "let finaladdr=%d\n"
+					+ "\n"
+					+ "  for op in operationruns filter op.tick >= inittick and op.tick <= finaltick \n"
+					+ "  filter (op.opcode == 2 or op.bank == 1 )\n"
+					+ "  let pc=first(for ins in instructionruns filter ins.tick == op.tick return ins.pc) \n"
+					+ "  filter pc <= finaladdr and pc >= initaddr \n",
 					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
 					this.viewParams.get(VIEW_PARAM.TIME_END.name()),
 					this.viewParams.get(VIEW_PARAM.ADDR_START.name()),
@@ -118,9 +149,13 @@ public class SpaceListingView implements View {
 		switch (VIEW_TYPE.valueOf(name)) {
 		case ADDR_WINDOW_VIEW:
 			return new String[] { VIEW_PARAM.ADDR_START.name(), VIEW_PARAM.ADDR_END.name() };
+		case PC_WINDOW_VIEW:
+			return new String[] { VIEW_PARAM.ADDR_START.name(), VIEW_PARAM.ADDR_END.name() };
 		case TIME_WINDOW_VIEW:
 			return new String[] { VIEW_PARAM.TIME_START.name(), VIEW_PARAM.TIME_END.name() };
 		case ADDR_TIME_WINDOW_VIEW:
+			return new String[] { VIEW_PARAM.ADDR_START.name(), VIEW_PARAM.ADDR_END.name(), VIEW_PARAM.TIME_START.name(), VIEW_PARAM.TIME_END.name() };
+		case PC_TIME_WINDOW_VIEW:
 			return new String[] { VIEW_PARAM.ADDR_START.name(), VIEW_PARAM.ADDR_END.name(), VIEW_PARAM.TIME_START.name(), VIEW_PARAM.TIME_END.name() };
 		case FUNCTION_RUN_VIEW:
 			return new String[] { VIEW_PARAM.TIME_START.name() };
@@ -146,8 +181,8 @@ public class SpaceListingView implements View {
 		this.viewParams.put(name, val);
 	}
 
-	public SpaceListingView deepCopy() {
-		SpaceListingView copy = new SpaceListingView();
+	public AccessListingView deepCopy() {
+		AccessListingView copy = new AccessListingView();
 		copy.viewType = this.viewType;
 		copy.viewParams = new HashMap<String, Long>(this.viewParams);
 		return copy;

@@ -3,9 +3,17 @@
 		"description": "Get all objects",
 		"query": "allobjs.aql"
 	},
+	"allwitnesses": {
+		"description": "Get all witnesses",
+		"query": "allwitnesses.aql"
+	},
 	"rmobj": {
-		"description": "Remove object and its phases",
+		"description": "Remove object",
 		"query": "rmobj.aql"
+	},
+	"rmwitness": {
+		"description": "Remove witness",
+		"query": "rmwitness.aql"
 	},
 	"opdeps": {
 		"description": "Operation immediate dependencies",
@@ -66,5 +74,9 @@
     "why": {
     	"description": "WHY",
     	"query": "why.aql"
-    }   
+    },
+	"witnessevents": {
+	 	"description": "Get the full set of events witnessed by the stored witnesses",
+	  	"query": "witnessevents.aql"
+	}    
 }

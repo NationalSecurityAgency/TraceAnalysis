@@ -20,6 +20,7 @@ import ghidra.program.util.ProgramLocation;
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
 import tracemadness.dataflowinfo.DataflowEffect;
+import tracemadness.dataflowinfo.DataflowEffect.DataflowEffectType;
 import tracemadness.dataflowinfo.DataflowFunctionWithArgs;
 import tracemadness.dataflowinfo.DataflowInstructionWithEffects;
 import tracemadness.dataflowinfo.DataflowTime;
@@ -249,7 +250,7 @@ public class TimeListingLayoutModel implements LayoutModel, MadnessQueryResultLi
 				
 				String display = String.format("0x%x", argval);
 				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
-				fields.add(new TimeListingOperationField(argdep, null, argval, fn.tick, fn.pc, false, display, "Argument value " + display,x, width, fontMetrics, this.hlFactory));
+				fields.add(new TimeListingOperationField(DataflowEffectType.VALUE, argdep, null, argval, fn.tick, fn.pc, false, display, "Argument value " + display,x, width, fontMetrics, this.hlFactory));
 				x += width;
 				if(i < fn.argdeps.size() - 1 && i < fn.argvals.size() - 1 && fn.argdeps.get(i+1) != null && fn.argvals.get(i+1) != null) {
 					width = fontMetrics.charsWidth(new char[]{',',' '}, 0, 2);
@@ -274,7 +275,7 @@ public class TimeListingLayoutModel implements LayoutModel, MadnessQueryResultLi
 			fields.add(eqField);
 			String display = String.format("0x%x", fn.retval);
 			width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
-			fields.add(new TimeListingOperationField(fn.retdep, null, fn.retval, fn.tick, fn.pc, false, display, "return value " + display, x, width, fontMetrics, this.hlFactory));
+			fields.add(new TimeListingOperationField(DataflowEffectType.VALUE, fn.retdep, null, fn.retval, fn.tick, fn.pc, false, display, "return value " + display, x, width, fontMetrics, this.hlFactory));
 			x += width;
 		}
 		w = x - start;
@@ -322,7 +323,7 @@ public class TimeListingLayoutModel implements LayoutModel, MadnessQueryResultLi
 				display = String.format("%s = 0x%x", eff.destStr, eff.val);
 				desc = String.format("register value 0x%x written", eff.val);
 				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
-				fields.add(new TimeListingOperationField(eff.index, null, eff.val, ins.tick, ins.pc, false, display, desc, x, width, fontMetrics, this.hlFactory));
+				fields.add(new TimeListingOperationField(eff.type, eff.index, eff.addr, eff.val, ins.tick, ins.pc, false, display, desc, x, width, fontMetrics, this.hlFactory));
 				break;
 			case MEM_READ:
 				valstr = eff.val== null ? "?" : String.format("0x%x", eff.val);
@@ -332,7 +333,7 @@ public class TimeListingLayoutModel implements LayoutModel, MadnessQueryResultLi
 				display = String.format("Read [%s0x%x]:%d = %s", addrname, eff.addr, eff.size, valstr);
 				desc = String.format("memory value %s read", valstr);
 				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
-				fields.add(new TimeListingOperationField(eff.index, null, eff.val, ins.tick, ins.pc, false, display, desc, x, width, fontMetrics, this.hlFactory));
+				fields.add(new TimeListingOperationField(eff.type, eff.index, null, eff.val, ins.tick, ins.pc, false, display, desc, x, width, fontMetrics, this.hlFactory));
 				break;
 			case MEM_WRITE:
 				valstr = eff.val== null ? "?" : String.format("0x%x", eff.val);
@@ -342,7 +343,7 @@ public class TimeListingLayoutModel implements LayoutModel, MadnessQueryResultLi
 				display = String.format("Write [%s0x%x]:%d = %s", addrname, eff.addr, eff.size, valstr);
 				desc = String.format("memory value %s written", valstr);
 				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
-				fields.add(new TimeListingOperationField(eff.index, eff.addr, eff.val, ins.tick, ins.pc, true, display, desc, x, width, fontMetrics, this.hlFactory));
+				fields.add(new TimeListingOperationField(eff.type, eff.index, eff.addr, eff.val, ins.tick, ins.pc, true, display, desc, x, width, fontMetrics, this.hlFactory));
 				break;
 			case MEM_ACCESS:
 				if(eff.val == null) addrname = null;
@@ -352,11 +353,17 @@ public class TimeListingLayoutModel implements LayoutModel, MadnessQueryResultLi
 				display = String.format("Access %s0x%x", addrname, eff.val);
 				desc = String.format("address %s0x%x accessed", addrname, eff.val);
 				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
-				fields.add(new TimeListingOperationField(eff.index, eff.val.longValue(), eff.val, ins.tick, ins.pc, false, display, desc, x, width, fontMetrics, this.hlFactory));
+				fields.add(new TimeListingOperationField(eff.type, eff.index, eff.val.longValue(), eff.val, ins.tick, ins.pc, false, display, desc, x, width, fontMetrics, this.hlFactory));
 				break;
 			case BRANCH:
 				display = "BRANCH";
 				desc = String.format("branch target 0x%x", eff.val);
+				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
+				fields.add(new SimpleTextField(display, fontMetrics, x, width, true, this.hlFactory));
+				break;
+			case VALUE:
+				display = "VALUE";
+				desc = String.format("value 0x%x", eff.val);
 				width = fontMetrics.charsWidth(display.toCharArray(), 0, display.length());
 				fields.add(new SimpleTextField(display, fontMetrics, x, width, true, this.hlFactory));
 				break;

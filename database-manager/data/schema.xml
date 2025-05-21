@@ -287,6 +287,28 @@
       <field>end</field>
     </index>
   </node>
+  <node name="witnesses" sourcetype="user">
+    <description>Annotations for instructions that represent the creation, type conversion, or death of an object</description>
+    <attr name="moduleName" type="string">
+      <description>The string name of the module in which the witness instruction is found</description>
+      <join table="modules" attr="path" />
+    </attr>
+    <attr name="offset" type="int">
+      <description>The offset within the module in which the witness instruction is found</description>
+    </attr>
+    <attr name="eventType" type="string">
+      <description>The type of witness--"BIRTH" (if witnessing the birth of an object), "DEATH" (if witnessing the death of an object), or "CHANGE" if witnessing the type conversion of an object</description>
+    </attr>
+    <attr name="typeId" type="string">
+      <description>The Ghidra UniversalID of the type of object (if type == "BIRTH" or "CHANGE")</description>
+    </attr>
+    <attr name="insFeature" type="string">
+      <description>The feature of the instruction that bears witness to the event. Can be "REG_WRITE" (if it is the value written to a register by this instruction that is the address of the object being witnessed; which register specifically is described by regNum), "LOAD_VAL" (if it is the (assumed unique) value loaded from memory by this instruction that represents the witnessed object's address), "LOAD_ADDR" (if it is the (assumed unique) address being loaded from by this instruction that represents the witnessed object's address), "STORE_VAL" (if it is the (assumed unique) value stored into memory by this instruction that represents the witnessed object's address), "STORE_ADDR" (if it is the (assumed unique) address being stored to by this instruction that represents the witnessed object's address), </description>
+    </attr>
+    <attr name="regNum" type="int">
+      <description>If feature == "REG_WRITE", the offset of the register (in Ghidra's register space) being written by the instruction whose written value represents the witnessed object's address</description>
+    </attr>
+  </node>
   <node name="memaccesses" sourcetype="analysis">
     <description>The calls to malloc along with their return values made during the trace</description>
     <attr name="index" type="int">

@@ -21,13 +21,13 @@ import com.arangodb.ArangoDatabaseAsync;
 import com.arangodb.Protocol;
 import com.arangodb.config.ArangoConfigProperties;
 import com.arangodb.entity.BaseDocument;
-import com.arangodb.entity.BaseEdgeDocument;
 import com.arangodb.entity.DocumentCreateEntity;
 import com.arangodb.entity.DocumentUpdateEntity;
 
 import ghidra.program.model.data.DataType;
 import resources.ResourceManager;
 import tracemadness.objectdata.ObjectInfo;
+import tracemadness.objectdata.ObjectWitness;
 
 public class ArangoClient {
 
@@ -143,7 +143,6 @@ public class ArangoClient {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			//MadnessPlugin.LOG.info("SetObject UPDATING...");
 			CompletableFuture<DocumentUpdateEntity<Void>> f = this.db.collection("objects").updateDocument(key, doc);
 			try {
 				f.get();
@@ -153,11 +152,52 @@ public class ArangoClient {
 				System.out.println("document update failed: " + ee.getStackTrace());
 			}
 		}
-		// BaseEdgeDocument edge = new BaseEdgeDocument();
-		// edge.setTo("types/"+"TYPE_"+typename.replaceAll("\\*",
-		// "PTR").replaceAll("[^a-zA-Z0-9_]", "_"));
-		// edge.setFrom("objects/"+Long.toString(base));
-		// this.db.collection("hastype").insertDocument(edge);
+	}
+	public void setWitness(ObjectWitness w) {
+		System.out.println("make: " + w);
+		JSONObject obj = w.toJSON();
+		BaseDocument doc = new BaseDocument();
+		String key = w.getKey();
+		doc.setKey(key);
+		for(var k : obj.keySet()) {
+			doc.addAttribute(k, obj.get(k));
+		}
+		System.out.println("make: " + doc);
+		
+		
+		try {
+			CompletableFuture<DocumentCreateEntity<Void>> f = this.db.collection("witnesses").insertDocument(doc);
+			try {
+				f.get();
+			} catch(InterruptedException ie) {
+				System.out.println("witness creation interrupted: " + ie.getStackTrace());
+			} catch(ExecutionException ee) {
+				System.out.println("witness creation failed: " + ee.getStackTrace());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			CompletableFuture<DocumentUpdateEntity<Void>> f = this.db.collection("witnesses").updateDocument(key, doc);
+			try {
+				f.get();
+			} catch(InterruptedException ie) {
+				System.out.println("document update interrupted: " + ie.getStackTrace());
+			} catch(ExecutionException ee) {
+				System.out.println("document update failed: " + ee.getStackTrace());
+			}
+		}
+	}
+	public void updateWitness(ObjectWitness w) {
+		removeWitness(w);
+		setWitness(w);
+	}
+	public void removeWitness(ObjectWitness w) {
+		try {
+			String[] params = new String[] { w.getKey() };	
+			runQuery("rmwitness", params);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
 	}
 	
 	public void updateObject(ObjectInfo obj) {

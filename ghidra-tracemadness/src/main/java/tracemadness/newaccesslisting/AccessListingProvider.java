@@ -1,4 +1,4 @@
-package tracemadness.spacelisting;
+package tracemadness.newaccesslisting;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
@@ -28,7 +28,6 @@ import tracemadness.listingfield.SpacetimeAddrField;
 import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.listingfield.SpacetimeTickField;
 import tracemadness.objectdata.ObjectInfo;
-import tracemadness.objectdata.ObjectPhase;
 import tracemadness.timelisting.TimeListingSettings;
 import tracemadness.timelisting.TimeListingView;
 import docking.ActionContext;
@@ -47,7 +46,7 @@ import docking.widgets.fieldpanel.listener.FieldSelectionListener;
 import docking.widgets.fieldpanel.support.*;
 import docking.widgets.indexedscrollpane.IndexedScrollPane;
 
-public class SpaceListingProvider 
+public class AccessListingProvider 
 	extends ComponentProvider 
 	implements FieldLocationListener, 
 		FieldSelectionListener,
@@ -61,16 +60,16 @@ public class SpaceListingProvider
 	private JLabel currentViewFooter; // the footer for displaying the full versions of clipped text
 	private LayoutModel model;
 	private MadnessPlugin plugin;
-	private SpaceListingView view;
+	private AccessListingView view;
 	private Font font;
 	private FontMetrics fontMetrics;
 
 	private ToggleDockingAction navigationOutgoingAction;
 	private ToggleDockingAction navigationIncomingAction;
-	private List<SpaceListingView> history;
+	private List<AccessListingView> history;
 	private int historyCursor;
 	
-	public SpaceListingProvider(MadnessPlugin plugin, String name) {
+	public AccessListingProvider(MadnessPlugin plugin, String name) {
 		// TODO what is the "owner" third parameter here supposed to be?
 		super(plugin.getTool(), name, name);
 		this.plugin = plugin;
@@ -80,11 +79,11 @@ public class SpaceListingProvider
 		this.fontMetrics = this.mainPanel.getFontMetrics(font);
 		
 		// init the history
-		this.view = new SpaceListingView();
+		this.view = new AccessListingView();
 		this.history = new ArrayList<>();
 		this.historyAdd(this.view);
 		
-		this.model = new SpaceListingLayoutModel(this.plugin, this, this.view, this.fontMetrics);
+		this.model = new AccessListingLayoutModel(this.plugin, this, this.view, this.fontMetrics);
 		this.listingPanel = new FieldPanel(this.model, "Time listing");
 		this.listingPanel.setFont(font);
 		
@@ -92,7 +91,7 @@ public class SpaceListingProvider
 		setupMouseListeners();
 		
 		// Add the context menu items and ensure that right clicks in this provider's component happen in the SpaceListingActionContext context
-		plugin.getTool().registerDefaultContextProvider(SpaceListingActionContext.class, this);
+		plugin.getTool().registerDefaultContextProvider(AccessListingActionContext.class, this);
 		createContextActions();
 		
 		// Add the docking actions
@@ -105,22 +104,22 @@ public class SpaceListingProvider
 		buildSpaceListingPanel();
 	}
 	
-	public void historyAdd(SpaceListingView v) {
+	public void historyAdd(AccessListingView v) {
 		for (int i = this.historyCursor + 1; i < this.history.size();) {
 			this.history.remove(i);
 		}
 		if(this.listingPanel != null) {
-			v.lastAddress = ((SpaceListingLayoutModel) this.model).getAddress(this.listingPanel.getCursorLocation().getIndex());
+			v.lastAddress = ((AccessListingLayoutModel) this.model).getAddress(this.listingPanel.getCursorLocation().getIndex());
 		}
 		this.history.add(v);
 		this.historyCursor++;
 	}
-	public SpaceListingView getCurrentHistory() {
+	public AccessListingView getCurrentHistory() {
 		if (this.history.size() == 0)
 			return null;
 		return this.history.get(this.historyCursor);
 	}
-	public SpaceListingView historyBack() {
+	public AccessListingView historyBack() {
 		if (this.history.size() == 0)
 			return null;
 		if(this.historyCursor == 0)
@@ -128,7 +127,7 @@ public class SpaceListingProvider
 		this.historyCursor = Math.max(this.historyCursor - 1, 0);
 		return this.history.get(this.historyCursor);
 	}
-	public SpaceListingView historyForward() {
+	public AccessListingView historyForward() {
 		if (this.history.size() == 0)
 			return null;
 		if(this.historyCursor == this.history.size()-1)
@@ -137,28 +136,28 @@ public class SpaceListingProvider
 		return this.history.get(this.historyCursor);
 	}
 	
-	public SpaceListingView getView() {
+	public AccessListingView getView() {
 		return this.view;
 	}
 	
 	// makes a new view and sets it (adds to the history)
-	public void newView(SpaceListingView v) {
+	public void newView(AccessListingView v) {
 		this.historyAdd(v);
 		this.setView(v);
 	}
 	
 	// simply sets the view (does not add to history)
-	public void setView(SpaceListingView view) {
+	public void setView(AccessListingView view) {
 		this.view = view;
 		currentViewFooter.setText("Now viewing: " + this.view.toString());
-		this.model = new SpaceListingLayoutModel(this.plugin, this, view, this.fontMetrics);
+		this.model = new AccessListingLayoutModel(this.plugin, this, view, this.fontMetrics);
 	}
 	
 	public void refresh() {
 		this.listingPanel.setLayoutModel(this.model);
 		this.scroller.indexModelChanged();
 		if(this.view.lastAddress != null && this.listingPanel != null) {
-			BigInteger idx = ((SpaceListingLayoutModel)this.model).getAddressIndex(this.view.lastAddress);
+			BigInteger idx = ((AccessListingLayoutModel)this.model).getAddressIndex(this.view.lastAddress);
 			if(idx != null)	this.listingPanel.setCursorPosition(idx, 0, 0, 0);
 			var endLayout = this.listingPanel.getVisibleEndLayout();
 			if(endLayout == null) {
@@ -174,7 +173,7 @@ public class SpaceListingProvider
 	}
 	
 	public void dispose() {
-		plugin.getTool().unregisterDefaultContextProvider(SpaceListingActionContext.class, this);
+		plugin.getTool().unregisterDefaultContextProvider(AccessListingActionContext.class, this);
 	}
 	
 	// Customize GUI
@@ -202,12 +201,12 @@ public class SpaceListingProvider
 
 	private void createDockingActions() {
 
-		SpaceListingProvider self = this;
+		AccessListingProvider self = this;
 		// Go back in history
 		DockingAction undoHistoryAction = new DockingAction("Back", getName()) {
 			@Override
 			public void actionPerformed(ActionContext arg0) {
-				SpaceListingView v = self.historyBack();
+				AccessListingView v = self.historyBack();
 				if (v != null)
 					self.setView(v);
 			}
@@ -220,7 +219,7 @@ public class SpaceListingProvider
 		DockingAction redoHistoryAction = new DockingAction("Forward", getName()) {
 			@Override
 			public void actionPerformed(ActionContext arg0) {
-				SpaceListingView v = self.historyForward();
+				AccessListingView v = self.historyForward();
 				if (v != null)
 					self.setView(v);
 			}
@@ -291,21 +290,23 @@ public class SpaceListingProvider
 	public ActionContext getActionContext(MouseEvent ev) {
 		if(ev == null) {
 			// something is asking for this without an actual click?
-			return new SpaceListingActionContext(this, this.listingPanel.getCurrentField());			
+			return new AccessListingActionContext(this, this.listingPanel.getCurrentField());			
 		}
 		java.awt.Point pt = ev.getPoint();
 		FieldLocation floc = new FieldLocation();
 		Field f = this.listingPanel.getFieldAt((int)pt.getX(), (int)pt.getY(), floc);
 		if(f == null) {
 			// we clicked but not on any particular field
-			return new SpaceListingActionContext(this, this.listingPanel.getCurrentField());
+			return new AccessListingActionContext(this, this.listingPanel.getCurrentField());
 		}
-		return new SpaceListingActionContext(this, f);
+		return new AccessListingActionContext(this, f);
 	}
 	
 	@Override
 	public void fieldLocationChanged(FieldLocation location, Field field, EventTrigger trigger) {
-	
+		if(field == null) {
+			return;
+		}
 		System.out.println("location -> " + location.toString() + " in " + field.toString());
 		location.getIndex();
 		// set the label to the field's full text
@@ -321,40 +322,53 @@ public class SpaceListingProvider
 	// Here begin the API functions to call the  
 	public void showAccessesInRange(long start, long end) {
 		HashMap<String, Long> params = new HashMap<>();
-		params.put(SpaceListingView.VIEW_PARAM.ADDR_START.name(), start);
-		params.put(SpaceListingView.VIEW_PARAM.ADDR_END.name(), end);
-		this.newView(new SpaceListingView(SpaceListingView.VIEW_TYPE.ADDR_WINDOW_VIEW.name(), params));
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), start);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), end);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_WINDOW_VIEW.name(), params));
+	}
+	public void showAccessesInRect(long startTick, long endTick, long startAddr, long endAddr) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), startAddr);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), endAddr);
+		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), startTick);
+		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), endTick);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
+	}
+	public void showAccessesInPCRect(long startTick, long endTick, long startAddr, long endAddr) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), startAddr);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), endAddr);
+		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), startTick);
+		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), endTick);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.PC_TIME_WINDOW_VIEW.name(), params));
+	}
+	public void showAccessesByPCRange(long start, long end) {
+		HashMap<String, Long> params = new HashMap<>();
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), start);
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), end);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.PC_WINDOW_VIEW.name(), params));
 	}
 	public void showObjectAccesses(ObjectInfo obj) {
 		HashMap<String, Long> params = new HashMap<>();
 		long size = obj.getSize();
-		params.put(SpaceListingView.VIEW_PARAM.ADDR_START.name(), obj.getBase());
-		params.put(SpaceListingView.VIEW_PARAM.ADDR_END.name(), obj.getBase()+size);
-		params.put(SpaceListingView.VIEW_PARAM.TIME_START.name(), obj.getBirth());
-		params.put(SpaceListingView.VIEW_PARAM.TIME_END.name(), obj.getDeath());
-		this.newView(new SpaceListingView(SpaceListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
-	}
-	public void showObjectPhaseAccesses(ObjectInfo obj, ObjectPhase phase) {
-		HashMap<String, Long> params = new HashMap<>();
-		long size = obj.getSize();
-		params.put(SpaceListingView.VIEW_PARAM.ADDR_START.name(), obj.getBase());
-		params.put(SpaceListingView.VIEW_PARAM.ADDR_END.name(), obj.getBase()+size);
-		params.put(SpaceListingView.VIEW_PARAM.TIME_START.name(), phase.getStart());
-		params.put(SpaceListingView.VIEW_PARAM.TIME_END.name(), obj.getPhaseEnd(phase));
-		this.newView(new SpaceListingView(SpaceListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
+		params.put(AccessListingView.VIEW_PARAM.ADDR_START.name(), obj.getBase());
+		params.put(AccessListingView.VIEW_PARAM.ADDR_END.name(), obj.getBase()+size);
+		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), obj.getBirth());
+		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), obj.getDeath());
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name(), params));
 	}
 	public void showAccessesInTimeWindow(long start, long end) {
 		HashMap<String, Long> params = new HashMap<>();
-		params.put(SpaceListingView.VIEW_PARAM.TIME_START.name(), start);
-		params.put(SpaceListingView.VIEW_PARAM.TIME_END.name(), end);
-		this.newView(new SpaceListingView(SpaceListingView.VIEW_TYPE.TIME_WINDOW_VIEW.name(), params));
+		params.put(AccessListingView.VIEW_PARAM.TIME_START.name(), start);
+		params.put(AccessListingView.VIEW_PARAM.TIME_END.name(), end);
+		this.newView(new AccessListingView(AccessListingView.VIEW_TYPE.TIME_WINDOW_VIEW.name(), params));
 	}
 	
 	//---------------------------------------------------------------
 	// Here begin the menu item action classes. 
 
 	private class AccessorContextAction extends AddrAction {
-		public AccessorContextAction(SpaceListingProvider provider) {
+		public AccessorContextAction(AccessListingProvider provider) {
 			super(provider, "All Accessors", provider.plugin.getName());
 			setKeyBindingData(new KeyBindingData(KeyEvent.VK_A, InputEvent.ALT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK));
 		}
@@ -362,7 +376,7 @@ public class SpaceListingProvider
 		@Override
 		public boolean isEnabledForContext(ActionContext context) {
 			if(super.isEnabledForContext(context)) {
-				SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+				AccessListingActionContext tc = (AccessListingActionContext) context; 
 				if(isValidContext(tc)) {
 					Field f = tc.getField();
 					if(f != null && f instanceof SpacetimeAddrField) {
@@ -376,7 +390,7 @@ public class SpaceListingProvider
 		@Override
 		public void actionPerformed(ActionContext context) {
 			System.out.println("accessors " + context.toString());
-			SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			AccessListingActionContext tc = (AccessListingActionContext) context; 
 			Field f = tc.getField();
 			SpacetimeAddrField sf = (SpacetimeAddrField) f;
 			long addr = sf.getAddr();
@@ -386,7 +400,7 @@ public class SpaceListingProvider
 	}
 
 	private class ObjectAccessorContextAction extends AddrAction {
-		public ObjectAccessorContextAction(SpaceListingProvider provider) {
+		public ObjectAccessorContextAction(AccessListingProvider provider) {
 			super(provider, "All Object Accessors", provider.plugin.getName());
 			setKeyBindingData(new KeyBindingData(KeyEvent.VK_A, InputEvent.ALT_DOWN_MASK));
 		}
@@ -394,11 +408,11 @@ public class SpaceListingProvider
 		@Override
 		public boolean isEnabledForContext(ActionContext context) {
 			if(super.isEnabledForContext(context)) {
-				SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+				AccessListingActionContext tc = (AccessListingActionContext) context; 
 				if(isValidContext(tc)) {
 					Field f = tc.getField();
 					if(f != null && f instanceof SpacetimeAddrField) {
-						if(this.provider.view.viewType.name().equals(SpaceListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name())) {
+						if(this.provider.view.viewType.name().equals(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name())) {
 							return true;							
 						}
 					}
@@ -409,13 +423,13 @@ public class SpaceListingProvider
 		
 		@Override
 		public void actionPerformed(ActionContext context) {
-			if(!this.provider.view.viewType.name().equals(SpaceListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name())) {
+			if(!this.provider.view.viewType.name().equals(AccessListingView.VIEW_TYPE.ADDR_TIME_WINDOW_VIEW.name())) {
 				return;
 			}
-			long starttick = this.provider.view.getViewParam(SpaceListingView.VIEW_PARAM.TIME_START.name());
-			long endtick = this.provider.view.getViewParam(SpaceListingView.VIEW_PARAM.TIME_END.name());
+			long starttick = this.provider.view.getViewParam(AccessListingView.VIEW_PARAM.TIME_START.name());
+			long endtick = this.provider.view.getViewParam(AccessListingView.VIEW_PARAM.TIME_END.name());
 			System.out.println("accessors " + context.toString());
-			SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			AccessListingActionContext tc = (AccessListingActionContext) context; 
 			Field f = tc.getField();
 			SpacetimeAddrField sf = (SpacetimeAddrField) f;
 			long addr = sf.getAddr();
@@ -428,16 +442,16 @@ public class SpaceListingProvider
 	// class to be available whenever anything with a corresponding operationrun 
 	// is right-clicked on  
 	private abstract class OperationAction extends DockingAction {
-		SpaceListingProvider provider;
-		public OperationAction(SpaceListingProvider provider, String name, String owner) {
+		AccessListingProvider provider;
+		public OperationAction(AccessListingProvider provider, String name, String owner) {
 			super(name, owner, true);
 			this.provider = provider;
 		}
 		
 		@Override
 		public boolean isEnabledForContext(ActionContext context) {
-			if(context instanceof SpaceListingActionContext) {
-				SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			if(context instanceof AccessListingActionContext) {
+				AccessListingActionContext tc = (AccessListingActionContext) context; 
 				if(isValidContext(tc)) {
 					Field f = tc.getField();
 					if(f != null && f instanceof SpacetimeOperationField) {
@@ -450,19 +464,19 @@ public class SpaceListingProvider
 
 		@Override
 		public boolean isAddToPopup(ActionContext context) {
-			return context instanceof SpaceListingActionContext;
+			return context instanceof AccessListingActionContext;
 		}
 	}
 
 	private class GoToTimeWindowContextAction extends OperationAction {
-		public GoToTimeWindowContextAction(SpaceListingProvider provider) {
+		public GoToTimeWindowContextAction(AccessListingProvider provider) {
 			super(provider, "Go To Memory Operation in Trace", provider.plugin.getName());
 			setKeyBindingData(new KeyBindingData(KeyEvent.VK_T, 0));
 		}
 
 		@Override
 		public void actionPerformed(ActionContext context) {
-			SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			AccessListingActionContext tc = (AccessListingActionContext) context; 
 			Field f = tc.getField();
 			if(!(f instanceof SpacetimeTickField)) {
 				return;
@@ -479,14 +493,14 @@ public class SpaceListingProvider
 		}
 	}
 	private class SliceContextAction extends OperationAction {
-		public SliceContextAction(SpaceListingProvider provider) {
+		public SliceContextAction(AccessListingProvider provider) {
 			super(provider, "Forward Slice Memory Operation in Trace", provider.plugin.getName());
 			setKeyBindingData(new KeyBindingData(KeyEvent.VK_F, 0));
 		}
 
 		@Override
 		public void actionPerformed(ActionContext context) {
-			SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			AccessListingActionContext tc = (AccessListingActionContext) context; 
 			Field f = tc.getField();
 			SpacetimeOperationField sf = (SpacetimeOperationField) f;
 			long index = sf.getIndex();
@@ -498,14 +512,14 @@ public class SpaceListingProvider
 		}
 	}
 	private class BackSliceContextAction extends OperationAction {
-		public BackSliceContextAction(SpaceListingProvider provider) {
+		public BackSliceContextAction(AccessListingProvider provider) {
 			super(provider, "Backward Slice Memory Operation in Trace", provider.plugin.getName());
 			setKeyBindingData(new KeyBindingData(KeyEvent.VK_B, 0));
 		}
 
 		@Override
 		public void actionPerformed(ActionContext context) {
-			SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			AccessListingActionContext tc = (AccessListingActionContext) context; 
 			Field f = tc.getField();
 			SpacetimeOperationField sf = (SpacetimeOperationField) f;
 			long index = sf.getIndex();
@@ -521,16 +535,16 @@ public class SpaceListingProvider
 	// A right-click menu action class should extend the PCAction class to be available 
 	// whenever anything with a corresponding PC is right-clicked on  
 	private abstract class AddrAction extends DockingAction {
-		SpaceListingProvider provider;
-		public AddrAction(SpaceListingProvider provider, String name, String owner) {
+		AccessListingProvider provider;
+		public AddrAction(AccessListingProvider provider, String name, String owner) {
 			super(name, owner);
 			this.provider = provider;
 		}
 		
 		@Override
 		public boolean isEnabledForContext(ActionContext context) {
-			if(context instanceof SpaceListingActionContext) {
-				SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			if(context instanceof AccessListingActionContext) {
+				AccessListingActionContext tc = (AccessListingActionContext) context; 
 				if(isValidContext(tc)) {
 					Field f = tc.getField();
 					// We enforce that PC actions are available for fields with a PC
@@ -544,23 +558,23 @@ public class SpaceListingProvider
 
 		@Override
 		public boolean isAddToPopup(ActionContext context) {
-			return context instanceof SpaceListingActionContext;
+			return context instanceof AccessListingActionContext;
 		}
 	}
 
 	// A right-click menu action class should extend the RangeAction class to be available 
 	// whenever there is a right-click with an active selection  
 	private abstract class RangeAction extends DockingAction {
-		SpaceListingProvider provider;
-		public RangeAction(SpaceListingProvider provider, String name, String owner) {
+		AccessListingProvider provider;
+		public RangeAction(AccessListingProvider provider, String name, String owner) {
 			super(name, owner);
 			this.provider = provider;
 		}
 		
 		@Override
 		public boolean isEnabledForContext(ActionContext context) {
-			if(context instanceof SpaceListingActionContext) {
-				SpaceListingActionContext tc = (SpaceListingActionContext) context; 
+			if(context instanceof AccessListingActionContext) {
+				AccessListingActionContext tc = (AccessListingActionContext) context; 
 				if(isValidContext(tc)) {
 					return this.provider.listingPanel.getSelection() != null;
 				}
@@ -570,7 +584,7 @@ public class SpaceListingProvider
 
 		@Override
 		public boolean isAddToPopup(ActionContext context) {
-			return context instanceof SpaceListingActionContext;
+			return context instanceof AccessListingActionContext;
 		}
 	}
 	
@@ -612,7 +626,7 @@ public class SpaceListingProvider
 				end = tmp;
 			} 
 			for(BigInteger idx = start; idx.compareTo(end) <= 0; idx = idx.add(BigInteger.ONE)) {
-				Long pc = ((SpaceListingLayoutModel)this.model).getPCForIndex(idx);
+				Long pc = ((AccessListingLayoutModel)this.model).getPCForIndex(idx);
 				if(pc == null) continue;
 				Address a = MadnessPlugin.flatApi.toAddr(pc);
 				sel.add(a);

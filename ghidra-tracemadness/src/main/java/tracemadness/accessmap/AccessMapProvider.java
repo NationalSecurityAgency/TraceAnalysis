@@ -1,19 +1,16 @@
 package tracemadness.accessmap;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
-import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,13 +29,11 @@ import docking.action.ActionContextProvider;
 import docking.action.DockingAction;
 import docking.action.ToolBarData;
 import generic.theme.GIcon;
-import resources.Icons;
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
 import tracemadness.objectdata.ObjectInfo;
 import tracemadness.View;
 import tracemadness.dataflowinfo.DataflowAccess;
-import tracemadness.dataflowinfo.DataflowObject;
 
 public class AccessMapProvider extends ComponentProvider implements ActionContextProvider, MadnessQueryResultListener {
 
@@ -65,7 +60,7 @@ public class AccessMapProvider extends ComponentProvider implements ActionContex
 	}
 	
 	public void initData() {
-		String[] params = { "for op in operationruns filter (op.bank == 1 or op.opcode == 2 ) and op.tick > 50000 limit 10000" };
+		String[] params = { "for op in operationruns filter (op.bank == 1 or op.opcode == 2 ) and op.tick < 1000 limit 10000" };
 		//String[] params = { "for op in operationruns filter (op.bank == 1 and op.addr < 139657211039752+100000) or (op.assocd_bank == 1 and op.assocd_addr < 139657211039752+100000) limit 10000" };
 		try {
 			plugin.runQuery("accesses", params, this, "accesses");

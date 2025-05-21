@@ -3,12 +3,10 @@ package tracemadness.targetnav;
 import java.awt.event.ActionEvent;
 
 import javax.swing.AbstractAction;
-import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -23,7 +21,6 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.StructureDataType;
-import ghidra.program.util.ProgramLocation;
 import tracemadness.MadnessPlugin;
 import tracemadness.objectdata.ObjectInfo;
 
@@ -67,8 +64,6 @@ public class DataTargetProvider extends ComponentProvider implements ActionConte
 		
 		GroupLayout layout = new GroupLayout(this.mainPanel);
 		this.mainPanel.setLayout(layout);
-
-		ButtonGroup grp = new ButtonGroup();
 
 		JButton startTickButton = new JButton("Start Tick");
 		JButton endTickButton = new JButton("End Tick");

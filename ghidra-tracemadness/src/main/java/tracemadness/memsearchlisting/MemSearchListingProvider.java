@@ -30,11 +30,8 @@ public class MemSearchListingProvider extends ComponentProvider implements Actio
 	private long index;
 
 	public MemSearchListingProvider(MadnessPlugin plugin, byte[] str) {
-		super(plugin.getTool(), "Slice Listing", plugin.getName());
+		super(plugin.getTool(), "Memory Search Results", plugin.getName());
 		this.plugin = plugin;
-		this.index = index;
-		this.depth = depth;
-		this.forwards = forwards;
 		this.createContextActions();
 		this.model = new MemSearchListingTableModel(this.plugin, str);
 	}

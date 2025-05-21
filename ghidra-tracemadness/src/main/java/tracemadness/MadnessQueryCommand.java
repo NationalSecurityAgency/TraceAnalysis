@@ -1,8 +1,6 @@
 package tracemadness;
 
-import ghidra.framework.cmd.BackgroundCommand;
-import ghidra.framework.model.DomainObject;
-import ghidra.program.model.listing.Program;
+import ghidra.util.task.Task;
 import ghidra.util.task.TaskMonitor;
 
 import java.text.MessageFormat;
@@ -19,7 +17,7 @@ import com.arangodb.ArangoDatabaseAsync;
 import com.arangodb.shaded.fasterxml.jackson.databind.JsonNode;
 
 
-public class MadnessQueryCommand extends BackgroundCommand {
+public class MadnessQueryCommand extends Task {
 
 	private MadnessQuery query;
 	private MadnessQueryResultListener resultListener;
@@ -28,6 +26,7 @@ public class MadnessQueryCommand extends BackgroundCommand {
 	private String tag;
 
 	public MadnessQueryCommand(MadnessQuery baseQuery, String[] params, ArangoDatabaseAsync db, MadnessQueryResultListener listener, String queryTag) throws Exception {
+		super("TraceMadness Query");
 		this.query = baseQuery;
 		this.resultListener = listener;
 		this.queryParams = params;
@@ -36,24 +35,8 @@ public class MadnessQueryCommand extends BackgroundCommand {
 	}
 
 	@Override
-	public boolean applyTo(DomainObject obj, TaskMonitor monitor) {
-		if(!(obj instanceof Program)) {
-			return false;
-		}
-		Program prog = (Program) obj;
-		String proc = prog.getLanguage().toString();
-
-		String q = null;
-		if (this.query.queries.containsKey(proc)) {
-			q = this.query.queries.get(proc);
-		} else if (this.query.queries.containsKey("default")) {
-			q = this.query.queries.get("default");
-			MadnessPlugin.LOG.info("query:\n"+query);
-		} else {
-			MadnessPlugin.LOG.error("Query: " + this.query.name + " did not specify an AQL file for the specified processor " + proc);
-			monitor.cancel();
-			return false;
-		}
+	public void run(TaskMonitor monitor) {
+		String q = this.query.queries.get("default");
 
 		String formattedQuery = new MessageFormat(q).format(this.queryParams);
 		MadnessPlugin.LOG.info("MadnessQuery List RUNNING: " + formattedQuery);
@@ -65,13 +48,13 @@ public class MadnessQueryCommand extends BackgroundCommand {
 			Time.sleep(1);
 			if(monitor.isCancelled()) {
 				f.cancel(true);
-				return false;
+				return;
 			}
 			if(f.isDone()) break;
 		}
-		if(f.isCancelled()) return false;
-		if(f.isCompletedExceptionally()) return false;
-		if(!f.isDone()) return false;
+		if(f.isCancelled()) return;
+		if(f.isCompletedExceptionally()) return;
+		if(!f.isDone()) return;
 		
 		//ArangoCursor<JsonNode> queryResults = this.dbConnection.query(formattedQuery, JsonNode.class);
 		try {
@@ -94,10 +77,10 @@ public class MadnessQueryCommand extends BackgroundCommand {
 				f = cursor.nextBatch();
 			}
 			this.resultListener.queryCompleted(ret, tag);
-			return true;
+			return;
 		} catch(Exception e) {
 			e.printStackTrace();
-			return false;
+			return;
 		}
 		
 	}

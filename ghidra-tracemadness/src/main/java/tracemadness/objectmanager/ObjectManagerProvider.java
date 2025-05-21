@@ -59,6 +59,18 @@ import tracemadness.MadnessQueryResultListener;
 import tracemadness.objectdata.ObjectInfo;
 import tracemadness.View;
 
+/*
+ * In the workflow 
+ *   executed instructions -[1]-> objects with blank types but (perhaps) known sizes -[2]-> better-typed objects -[3]-> better-typed decompiler variables (i.e. hopefully improved decompilation)
+ *   
+ *   step 1 is assisted by the witness manager
+ *   
+ *   step 2 is executed within TraceMadness by populating this widget with objects (whether manually or by collecting witnesses) and then using this   
+ *   tool to auto-populate the fields of the structure types associated with all the objects in this list
+ *   
+ *   step 3 is executed within TraceMadness by using this widget to propagate to all decompiler variables that take on (at any point in
+ *   the trace) the value that corresponds to the base address of a then-live object from the list, the then-type of that object
+ * */
 public class ObjectManagerProvider extends ComponentProvider implements ActionContextProvider {
 
 	private MadnessPlugin plugin;
@@ -172,7 +184,7 @@ public class ObjectManagerProvider extends ComponentProvider implements ActionCo
 			DockingAction refreshAction = new DockingAction("Refresh", getName()) {
 				@Override
 				public void actionPerformed(ActionContext arg0) {
-					self.plugin.objectCache.refresh();
+					self.plugin.getObjectCache().refresh();
 					self.model.reload();
 				}
 			};

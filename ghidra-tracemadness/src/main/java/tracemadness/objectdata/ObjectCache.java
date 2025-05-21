@@ -34,8 +34,10 @@ public class ObjectCache implements MadnessQueryResultListener {
 
 	DataTypeManager datatypeManager;
 	private HashMap<String, ObjectInfo> keyToObjectMap;
-	private TreeMap<Long, TreeMap<Long, ObjectInfo>> addressToObjectsMap;
+	private TreeMap<Long, TreeMap<Long, ObjectInfo>> addressToObjectsMap; // addr -> tick -> object
 	private ArrayList<ObjectInfo> objects;
+	private HashMap<String, HashMap<Long, ObjectWitness>> witnessMap; // module -> offset -> witness
+	private ArrayList<ObjectWitness> witnesses;
 
 	public ObjectCache(DataTypeManager dtmgr, MadnessPlugin plugin) {
 		this.keyToObjectMap = new HashMap<>();
@@ -55,10 +57,34 @@ public class ObjectCache implements MadnessQueryResultListener {
 			e.printStackTrace();
 			return;
 		}
+		try {
+			String[] params = new String[] { };
+			plugin.runQuery("allwitnesses", params, this, "witnesses");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
 	}
-	
+
+	public ObjectInfo getObjectAt(Long addr, Long tick) {
+		if(!this.addressToObjectsMap.containsKey(addr)) return null;
+		if(!this.addressToObjectsMap.get(addr).containsKey(tick)) return null;
+		return this.addressToObjectsMap.get(addr).get(tick);
+	}
+
 	public ArrayList<ObjectInfo> getObjects() {
 		return this.objects;
+	}
+
+	public ObjectWitness getWitness(String module, long offset) {
+		if(!this.witnessMap.containsKey(module)) return null;
+		HashMap<Long, ObjectWitness> moduleWitnesses = this.witnessMap.get(module);
+		if(!moduleWitnesses.containsKey(offset)) return null;
+		return moduleWitnesses.get(offset);
+	}
+
+	public ArrayList<ObjectWitness> getWitnesses() {
+		return this.witnesses;
 	}
 
 	public ObjectInfo getObjectByKey(String key) {
@@ -106,34 +132,49 @@ public class ObjectCache implements MadnessQueryResultListener {
 
 	@Override
 	public void queryCompleted(List<JSONObject> results, String tag) {
-		for (JSONObject ob : results) {
-			try {
-				String key = ob.getString("_key");
-				String name = ob.getString("name");
-				long base = ob.getLong("base");
-				long birth = ob.getLong("start");
-				long death = ob.getLong("end");
-				long size = ob.getLong("size");
-				String typeId = ob.getString("type");
-				UniversalID typeUID = new UniversalID(Long.parseLong(typeId));
-				DataType ty = datatypeManager.findDataTypeForID(typeUID);
-				ObjectInfo info = new ObjectInfo(key, name, size, base, birth, death, ty);
-				this.objects.add(info);
-				this.keyToObjectMap.put(info.getKey(), info);
-				for(int i = 0; i < size; i++) {
-					long addr = base + i;
-					if(!this.addressToObjectsMap.containsKey(addr)) {
-						this.addressToObjectsMap.put(addr, new TreeMap<>());
+		if(tag.equals("objects")) {
+			for (JSONObject ob : results) {
+				try {
+					String key = ob.getString("_key");
+					String name = ob.getString("name");
+					long base = ob.getLong("base");
+					long birth = ob.getLong("start");
+					long death = ob.getLong("end");
+					long size = ob.getLong("size");
+					String typeId = ob.getString("type");
+					UniversalID typeUID = new UniversalID(Long.parseLong(typeId));
+					DataType ty = datatypeManager.findDataTypeForID(typeUID);
+					ObjectInfo info = new ObjectInfo(key, name, size, base, birth, death, ty);
+					this.objects.add(info);
+					this.keyToObjectMap.put(info.getKey(), info);
+					for(int i = 0; i < size; i++) {
+						long addr = base + i;
+						if(!this.addressToObjectsMap.containsKey(addr)) {
+							this.addressToObjectsMap.put(addr, new TreeMap<>());
+						}
+						TreeMap<Long, ObjectInfo> objsAt = this.addressToObjectsMap.get(addr);
+						objsAt.put(birth, info);
 					}
-					TreeMap<Long, ObjectInfo> objsAt = this.addressToObjectsMap.get(addr);
-					objsAt.put(birth, info);
+					if(plugin.objectManagerProvider != null) {
+						plugin.objectManagerProvider.model.reload();
+					}
+					
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-				if(plugin.objectManagerProvider != null) {
-					plugin.objectManagerProvider.model.reload();
+			}
+		} else if(tag.equals("witnesses")) {
+			this.witnesses = new ArrayList<>();
+			this.witnessMap = new HashMap<>();
+			for (JSONObject ob : results) {
+				try {
+					ObjectWitness w = new ObjectWitness(ob, datatypeManager);
+					this.witnesses.add(w);
+					if(!this.witnessMap.containsKey(w.moduleName)) this.witnessMap.put(w.moduleName, new HashMap<>());
+					this.witnessMap.get(w.moduleName).put(w.offset, w);
+				} catch(Exception e) {
+					e.printStackTrace();
 				}
-				
-			} catch (Exception e) {
-				e.printStackTrace();
 			}
 		}
 	}

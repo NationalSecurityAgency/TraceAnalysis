@@ -154,6 +154,7 @@ public class AccessListingProvider
 	}
 	
 	public void refresh() {
+		if(this.listingPanel == null) return;
 		this.listingPanel.setLayoutModel(this.model);
 		this.scroller.indexModelChanged();
 		if(this.view.lastAddress != null && this.listingPanel != null) {

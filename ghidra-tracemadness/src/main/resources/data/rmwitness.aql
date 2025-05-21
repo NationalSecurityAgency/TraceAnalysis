@@ -1,0 +1,2 @@
+for w in witnesses filter w._key == "{0}"
+remove w in witnesses

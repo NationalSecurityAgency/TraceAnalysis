@@ -30,12 +30,13 @@ public class DataflowInstructionWithEffects extends DataflowTime {
 				if(x.isNull("index") || x.isNull("name") || x.isNull("val")) continue;
 				Long index = x.getLong("index");
 				Long size = x.getLong("size");
+				Long reg = x.getLong("reg");
 				String name = x.getString("name");
 				BigInteger val = null;
 				if(x.has("raw") && !x.isNull("raw")) val = x.get("raw") instanceof String ? new BigInteger(x.getString("raw"), 16) : new BigInteger(String.format("%d", x.getLong("raw")), 16);
 
 				// add to effects
-				effects.add(new DataflowEffect(DataflowEffect.DataflowEffectType.REG_WRITE, index, val, size, name, null, true));
+				effects.add(new DataflowEffect(DataflowEffect.DataflowEffectType.REG_WRITE, index, val, size, name, reg, true));
 			}
 		}
 		if (!src.isNull("memreads")) {

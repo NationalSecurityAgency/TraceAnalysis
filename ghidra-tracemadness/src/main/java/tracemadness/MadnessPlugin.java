@@ -61,6 +61,7 @@ import tracemadness.settings.Setting;
 import tracemadness.targetnav.CodeTargetProvider;
 import tracemadness.targetnav.DataTargetProvider;
 import tracemadness.timelisting.TimeListingProvider;
+import tracemadness.witnessmanager.WitnessManagerProvider;
 import tracemadness.modulemap.ModuleInfo;
 import tracemadness.modulemap.ModuleMap;
 import tracemadness.modulemap.ModuleMapProvider;
@@ -94,11 +95,12 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 	public AccessListingProvider accessListingProvider;
 	public MemoryListingProvider memoryListingProvider;
 	public ObjectManagerProvider objectManagerProvider;
+	public WitnessManagerProvider witnessManagerProvider;
 	public ModuleMapProvider moduleMapProvider;
 
 	public ArangoClient madness = null;
 	public MemoryIndexClient memory = null;
-	public ObjectCache objectCache;
+	private ObjectCache objectCache;
 	public ModuleMap moduleMap;
 	
 	public DecompInterface decomp;
@@ -141,7 +143,16 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		shouldHighlight = false;
 		dataTypeManager = null;
 
+		moduleMap = new ModuleMap(this);
+		moduleMap.refresh();
 		createSettings();
+
+		//accessMapProvider = new AccessMapProvider(this, "Access Map");
+		accessListingProvider = new AccessListingProvider(this, "Access Listing");
+		memoryListingProvider = new MemoryListingProvider(this, "Memory Listing");
+		objectManagerProvider = new ObjectManagerProvider(this, "Objects");
+		witnessManagerProvider = new WitnessManagerProvider(this, "Object Witnesses");
+		moduleMapProvider = new ModuleMapProvider(this, "Module Map", this.moduleMap);
 	}
 	
 	public static ProgramManager getProgramManager() {
@@ -201,7 +212,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		
 		//we create the object manager here so that the data type manager 
 		// is accessible, which is not the case unless a program is active
-		if(objectCache == null) {
+		/*if(objectCache == null) {
 			objectCache = new ObjectCache(this.getDataTypeManager(), this);
 			objectCache.refresh();
 		}
@@ -209,7 +220,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		if(moduleMap == null) {
 			moduleMap = new ModuleMap(this);
 			moduleMap.refresh();
-		}
+		}*/
 		
 		String db = (String) this.databaseSetting.getValue();
 		if (db != null && !db.equals("")) {
@@ -283,7 +294,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		}
 		try {
 			MadnessQueryCommand cmd = new MadnessQueryCommand(q, queryParams, this.madness.getCurrentDB(), listener, queryTag);
-			this.getTool().executeBackgroundCommand(cmd, this.getCurrentProgram());
+			this.getTool().execute(cmd);
 		} catch(Exception exc) {
 			MadnessPlugin.LOG.error(exc.getMessage());
 		}
@@ -292,7 +303,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 	public void runMemorySearchQuery(byte[] searchString, MadnessMemorySearchQueryResultListener listener, String queryTag) {
 		try {
 			MadnessMemorySearchCommand cmd = new MadnessMemorySearchCommand(searchString, this.memory, listener, queryTag);
-			this.getTool().executeBackgroundCommand(cmd, this.getCurrentProgram());
+			this.getTool().execute(cmd);
 		} catch(Exception exc) {
 			MadnessPlugin.LOG.error(exc.getMessage());
 		}
@@ -305,7 +316,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		}
 		try {
 			MadnessQueryCommand cmd = new MadnessQueryCommand(q, queryParams, this.madness.getCurrentDB(), listener, queryTag);
-			this.getTool().executeBackgroundCommand(cmd, this.getCurrentProgram());
+			this.getTool().execute(cmd);
 		} catch(Exception exc) {
 			MadnessPlugin.LOG.error(exc.getMessage());
 		}
@@ -337,7 +348,7 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 						} else {
 							msms = ms.getMarkerSet("TraceMadnessHighlight", loc.getProgram());
 							if (msms == null) {
-								msms = ms.createAreaMarker("TraceMadnessHighlight", "highlight of code run in Dataflow recording", MadnessPlugin.program, 999         , false       , true          , true           , addrColor           , true);
+								msms = ms.createAreaMarker("TraceMadnessHighlight", "Instructions in trace", loc.getProgram(), 999, false, true, true, addrColor, true);
 							}
 							markerSetCache.put(path,  msms);
 						}
@@ -364,11 +375,14 @@ public class MadnessPlugin extends ProgramPlugin implements MadnessQueryResultLi
 		});
 			
 	}
-	
+
 	public ProgramLocation getProgramLocation(Address addr, boolean takeFocus) {
 		ModuleInfo m = this.moduleMap.getContainingModule(addr.getOffset());
 		if(m == null) return null;
 		DomainFile f = this.getTool().getProject().getProjectData().getFile(m.getPath());
+		if(f == null) {
+			throw new IllegalArgumentException(String.format("Unable to find Ghidra file for path %s!", m.getPath()));
+		}
 		Program p = getProgramManager().openProgram(f, DomainFile.DEFAULT_VERSION, takeFocus ? ProgramManager.OPEN_CURRENT : ProgramManager.OPEN_HIDDEN);
 		addr = addr.add(-m.getBase()).add(p.getImageBase().getUnsignedOffset());
 		return new ProgramLocation(p, addr);

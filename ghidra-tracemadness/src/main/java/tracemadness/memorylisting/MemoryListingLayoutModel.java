@@ -14,10 +14,7 @@ import org.json.JSONObject;
 
 import tracemadness.MadnessPlugin;
 import tracemadness.MadnessQueryResultListener;
-import tracemadness.dataflowinfo.DataflowSpace;
 import tracemadness.dataflowinfo.DataflowSpaceMemoryByte;
-import tracemadness.dataflowinfo.DataflowSpaceOperation;
-import tracemadness.dataflowinfo.DataflowSpaceWithValueRange;
 import tracemadness.listingfield.SpacetimeOperationField;
 import tracemadness.memindex.MemoryValueQueryResult;
 import docking.widgets.fieldpanel.*;
@@ -76,7 +73,7 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 		this.space = new ArrayList<>();
 
 		try {
-			ArrayList<MemoryValueQueryResult> res = plugin.memory.getMemory(this.view.getViewParam(MemoryListingView.VIEW_PARAM.TICK.name()), this.view.getViewParam(MemoryListingView.VIEW_PARAM.ADDR_START.name()), this.view.getViewParam(MemoryListingView.VIEW_PARAM.LEN.name()), null, 10);
+			ArrayList<MemoryValueQueryResult> res = plugin.memory.getMemory(1, this.view.getViewParam(MemoryListingView.VIEW_PARAM.TICK.name()), this.view.getViewParam(MemoryListingView.VIEW_PARAM.ADDR_START.name()), this.view.getViewParam(MemoryListingView.VIEW_PARAM.LEN.name()), null, 10);
 			for(var r : res) {
 				this.space.addAll(r.bytes);				
 			}
@@ -155,7 +152,7 @@ public class MemoryListingLayoutModel implements LayoutModel, MadnessQueryResult
 		int width = MemoryListingSettings.ADDR_FIELD_WIDTH;
 		String addrname = "";
 		HashSet<String> names = new HashSet<>();
-		String n = plugin.objectCache.getName(s.addr, s.tick, 1);
+		String n = plugin.getObjectCache().getName(s.addr, s.tick, 1);
 		if(n != null) {
 			addrname += " " + n;
 		}

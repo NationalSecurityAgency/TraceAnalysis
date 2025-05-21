@@ -153,7 +153,7 @@ public class AccessListingLayoutModel implements LayoutModel, MadnessQueryResult
 		String addrname = "";
 		HashSet<String> names = new HashSet<>();
 		for(DataflowSpaceOperation op : s.operations) {
-			String n = plugin.objectCache.getName(s.addr, (int)op.tick.longValue(), (int)op.size.longValue());
+			String n = plugin.getObjectCache().getName(s.addr, (int)op.tick.longValue(), (int)op.size.longValue());
 			if(n != null) {
 				names.add(n);
 			}

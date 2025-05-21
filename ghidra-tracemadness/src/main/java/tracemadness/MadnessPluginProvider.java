@@ -52,6 +52,7 @@ import tracemadness.settings.SettingsProvider;
 import tracemadness.targetnav.CodeTargetProvider;
 import tracemadness.targetnav.DataTargetProvider;
 import tracemadness.timelisting.TimeListingProvider;
+import tracemadness.witnessmanager.WitnessManagerProvider;
 
 public class MadnessPluginProvider extends ComponentProvider {
 	private JPanel mainPanel;
@@ -98,6 +99,7 @@ public class MadnessPluginProvider extends ComponentProvider {
 		JButton objectsButton = new JButton(OBJECTS_BUTTON);
 		JButton calltreeButton = new JButton(CALL_TREE_BUTTON);
 		JButton moduleMapButton = new JButton(MODULES_BUTTON);
+		JButton witnessesButton = new JButton(WITNESSES_BUTTON);
 
 		int w = 300;
 		instructionListingButton.setPreferredSize(new Dimension(w, 30));
@@ -107,12 +109,14 @@ public class MadnessPluginProvider extends ComponentProvider {
 		objectsButton.setPreferredSize(new Dimension(w, 30));
 		calltreeButton.setPreferredSize(new Dimension(w, 30));
 		moduleMapButton.setPreferredSize(new Dimension(w, 30));
+		witnessesButton.setPreferredSize(new Dimension(w, 30));
 		
 		p.add(instructionListingButton);
 		//p.add(accessMapButton);
 		p.add(accessListingButton);
 		p.add(memoryListingButton);
 		p.add(objectsButton);
+		p.add(witnessesButton);
 		//p.add(calltreeButton);
 		p.add(moduleMapButton);
 		return p;
@@ -316,10 +320,10 @@ public class MadnessPluginProvider extends ComponentProvider {
 	@SuppressWarnings("serial")
 	public final AbstractAction MODULES_BUTTON = new AbstractAction("Module Map") {
 		public void actionPerformed(ActionEvent ev) {
-			if (plugin.moduleMapProvider == null) {
-				plugin.moduleMapProvider = new ModuleMapProvider(plugin, "Module Map", plugin.moduleMap);
-				plugin.moduleMapProvider.addToTool();
-			}
+			//if (plugin.moduleMapProvider == null) {
+			//	plugin.moduleMapProvider = new ModuleMapProvider(plugin, "Module Map", plugin.moduleMap);
+			//	plugin.moduleMapProvider.addToTool();
+			//}
 			plugin.moduleMapProvider.setVisible(true);
 		}
 	};
@@ -365,6 +369,12 @@ public class MadnessPluginProvider extends ComponentProvider {
 				plugin.objectManagerProvider.addToTool();
 			}
 			plugin.objectManagerProvider.setVisible(true);
+		}
+	};
+	@SuppressWarnings("serial")
+	public final AbstractAction WITNESSES_BUTTON = new AbstractAction("Witness Manager") {
+		public void actionPerformed(ActionEvent ev) {
+			plugin.witnessManagerProvider.setVisible(true);
 		}
 	};
 

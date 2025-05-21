@@ -130,22 +130,6 @@ public class MemoryIndexClient {
 		}
 		return null;
 	}
-	public void test() {
-		{
-			ArrayList<MemorySearchResult> res = this.searchMemory(new byte[] {113, 119, 101, 113}, null, 10);
-			for(var r : res) {
-				System.out.println("FOUND qweq at...");
-				System.out.println(r);
-			}
-		}
-		{
-			ArrayList<MemoryValueQueryResult> res = this.getMemory(150000, 0x5f699da712e0L, 100, null, 10);
-			for(var r : res) {
-				System.out.println("FOUND qweq at...");
-				System.out.println(r);
-			}
-		}
-	}
 	public ArrayList<MemorySearchResult> searchMemory(byte[] searchString, TaskMonitor monitor, int timeout) {
 		ArrayList<MemorySearchResult> res = new ArrayList<>();
 		try {
@@ -190,10 +174,11 @@ public class MemoryIndexClient {
 		}
 		return res;
 	}
-	public ArrayList<MemoryValueQueryResult> getMemory(long tick, long base, long len, TaskMonitor monitor, int timeout) {
+	public ArrayList<MemoryValueQueryResult> getMemory(long bank, long tick, long base, long len, TaskMonitor monitor, int timeout) {
 		ArrayList<MemoryValueQueryResult> res = new ArrayList<>();
 		try {
 			JSONObject req = new JSONObject();
+			req.put("mem_bank", bank);
 			req.put("mem_base", base);
 			req.put("mem_len", len);
 			req.put("mem_tick", tick);

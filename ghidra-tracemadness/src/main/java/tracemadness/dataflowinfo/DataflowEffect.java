@@ -5,7 +5,7 @@ import java.math.BigInteger;
 public class DataflowEffect {
 	
 	public static enum DataflowEffectType {
-		REG_WRITE, MEM_READ, MEM_WRITE, MEM_ACCESS, BRANCH
+		REG_WRITE, MEM_READ, MEM_WRITE, MEM_ACCESS, BRANCH, VALUE
 	}
 	
 	public DataflowEffectType type;

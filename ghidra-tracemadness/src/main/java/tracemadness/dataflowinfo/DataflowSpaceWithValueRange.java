@@ -1,6 +1,5 @@
 package tracemadness.dataflowinfo;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 
 import org.json.JSONArray;

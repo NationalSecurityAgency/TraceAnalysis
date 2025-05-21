@@ -1,4 +1,4 @@
-package tracemadness.spacelisting;
+package tracemadness.newaccesslisting;
 
 import docking.widgets.fieldpanel.field.*;
 import docking.widgets.fieldpanel.support.*;
@@ -10,7 +10,7 @@ import tracemadness.timelisting.TimeListingSettings;
 import java.awt.FontMetrics;
 import java.math.BigInteger;
 
-public class SpaceListingOperationField extends ClippingTextField implements SpacetimeTickField, SpacetimeOperationField, SpacetimeAddrField {
+public class AccessListingOperationField extends ClippingTextField implements SpacetimeTickField, SpacetimeOperationField, SpacetimeAddrField {
 
 	private Long addr;
 	private Long index;
@@ -18,7 +18,7 @@ public class SpaceListingOperationField extends ClippingTextField implements Spa
 	private BigInteger val;
 	private Boolean is_write;
 	private String description;
-	public SpaceListingOperationField(Long addr, Long index, Long tick, BigInteger val, Boolean is_write, String desc, String longdesc, int startX, int width, FontMetrics fm, FieldHighlightFactory hlFactory) {
+	public AccessListingOperationField(Long addr, Long index, Long tick, BigInteger val, Boolean is_write, String desc, String longdesc, int startX, int width, FontMetrics fm, FieldHighlightFactory hlFactory) {
 		super(startX, width, new TextFieldElement(new AttributedString(desc, TimeListingSettings.PC_COLOR, fm), 0, 0), hlFactory);
 		this.addr = addr;
 		this.index = index;
