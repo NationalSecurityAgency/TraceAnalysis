@@ -2,16 +2,15 @@ package tracemadness.accesslisting;
 
 import docking.ComponentProvider;
 import docking.DefaultActionContext;
-import docking.widgets.fieldpanel.field.Field;
 
 public class AccessListingActionContext extends DefaultActionContext {
 	
-	private Field field;
-	public AccessListingActionContext(ComponentProvider provider, Field f) {
+	private AnnotatedAccessEvent obj;
+	public AccessListingActionContext(ComponentProvider provider, AnnotatedAccessEvent obj) {
 		super(provider);
-		this.field = f;
+		this.obj = obj;
 	}
-	public Field getField() {
-		return this.field;
+	public AnnotatedAccessEvent getObject() {
+		return this.obj;
 	}
 }

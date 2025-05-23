@@ -279,11 +279,9 @@ public class WitnessManagerProvider extends ComponentProvider implements ActionC
 		public void queryCompleted(List<JSONObject> results, String tag) {
 			if(tag == "events") {
 				this.proposals = new ArrayList<>();
-				TreeMap<Long, TreeMap<Long, WitnessedObject>> liveObjects = new TreeMap<>();
+				TreeMap<Long, TreeMap<Long, WitnessedObject>> liveObjects = new TreeMap<>(); // addr -> tick -> obj
 				
-				TreeMap<Long, TreeMap<Long, WitnessEvent>> births = new TreeMap<>();
-				TreeMap<Long, TreeMap<Long, WitnessEvent>> changes = new TreeMap<>();
-				TreeMap<Long, TreeMap<Long, WitnessEvent>> deaths = new TreeMap<>();
+				ArrayList<WitnessEvent> events = new ArrayList<>();
 				for(JSONObject obj : results) {
 					try {
 						String module = obj.getString("module");
@@ -294,99 +292,65 @@ public class WitnessManagerProvider extends ComponentProvider implements ActionC
 						ObjectWitness  w= plugin.getObjectCache().getWitness(module, offset);
 						if(w == null) continue;
 						WitnessEvent e = new WitnessEvent(w, tick, addr);
-						switch(w.type) {
-						case ObjectWitness.eventType.BIRTH:
-							if(!births.containsKey(addr)) births.put(addr, new TreeMap<>());
-							births.get(addr).put(tick, e);
-							break;
-						case ObjectWitness.eventType.CHANGE:
-							if(!changes.containsKey(addr)) changes.put(addr, new TreeMap<>());
-							changes.get(addr).put(tick, e);
-							break;
-						case ObjectWitness.eventType.DEATH:
-							if(!deaths.containsKey(addr)) deaths.put(addr, new TreeMap<>());
-							deaths.get(addr).put(tick, e);
-							break;
-						}
-						// iterate through births and create objects for these:
-						for(var a : births.keySet()) {
-							for(var t: births.get(a).keySet()) {
-								WitnessEvent evt = births.get(a).get(t);
-								DataType ty = evt.witness.newDataType; 
-								ObjectInfo newObj = new ObjectInfo(String.format("%d_%d", evt.tick, evt.addr), String.format("my%s", ty.getName()), (long)ty.getLength(), evt.addr, evt.tick, null, ty);
-								if(!liveObjects.containsKey(evt.addr)) liveObjects.put(addr,  new TreeMap<>());
-								var objsAtAddr = liveObjects.get(evt.addr);
-								Map.Entry<Long, WitnessedObject> prevObj = objsAtAddr.floorEntry(evt.tick);
-								// if there is an object currently live at this tick, we need to kill it now
-								if(prevObj != null) {
-									prevObj.getValue().obj.setDeath(evt.tick);
-								}
-								Map.Entry<Long, WitnessedObject> nextObj = objsAtAddr.ceilingEntry(evt.tick);
-								// if there is an object live later than this one, we need to set ourselves to die before it starts
-								ObjectWitness deathWitness = null;
-								if(nextObj != null) {
-									newObj.setDeath(nextObj.getKey());
-									deathWitness = nextObj.getValue().birthWitness; // our death is thus witnessed by the birth of the new object after us
-								}
-								// now we can insert ourselves comfortably within the midst of whatever already exists: 
-								objsAtAddr.put(evt.tick, new WitnessedObject(evt.witness, deathWitness, newObj));
-							}
-						}
-						// iterate through changes and create new objects for these:
-						for(var a : changes.keySet()) {
-							for(var t: changes.get(a).keySet()) {
-								WitnessEvent evt = changes.get(a).get(t);
-								DataType ty = evt.witness.newDataType; 
-								ObjectInfo newObj = new ObjectInfo(String.format("%d_%d", evt.tick, evt.addr), String.format("my%s", ty.getName()), (long)ty.getLength(), evt.addr, evt.tick, null, ty);
-								if(!liveObjects.containsKey(evt.addr)) liveObjects.put(addr,  new TreeMap<>());
-								var objsAtAddr = liveObjects.get(evt.addr);
-								Map.Entry<Long, WitnessedObject> prevObj = objsAtAddr.floorEntry(evt.tick);
-								// if there is an object currently live at this tick, we need to kill it now
-								if(prevObj != null) {
-									prevObj.getValue().obj.setDeath(evt.tick);
-								} else {
-									// technically this is a problem indicating an incomplete set of witnesses, as we are not ending an existing object, so would be good to alert user that they need a birth witness for this case
-								}
-								Map.Entry<Long, WitnessedObject> nextObj = objsAtAddr.ceilingEntry(evt.tick);
-								// if there is an object live later than this one, we need to set ourselves to die before it starts
-								ObjectWitness deathWitness = null;
-								if(nextObj != null) {
-									newObj.setDeath(nextObj.getKey());
-									deathWitness = nextObj.getValue().birthWitness; // our death is thus witnessed by the birth of the new object after us
-								}
-								// now we can insert ourselves comfortably within the midst of whatever already exists: 
-								objsAtAddr.put(evt.tick, new WitnessedObject(evt.witness, deathWitness, newObj));
-							}
-						}
-						// iterate through deaths and end any live objects for these:
-						for(var a : deaths.keySet()) {
-							for(var t: deaths.get(a).keySet()) {
-								WitnessEvent evt = deaths.get(a).get(t);
-								if(!liveObjects.containsKey(evt.addr)) continue;
-								var objsAtAddr = liveObjects.get(evt.addr);
-								Map.Entry<Long, WitnessedObject> prevObj = objsAtAddr.floorEntry(evt.tick);
-								// if there is an object currently live at this tick, we need to kill it now
-								if(prevObj != null) {
-									prevObj.getValue().obj.setDeath(evt.tick);
-									prevObj.getValue().deathWitness = evt.witness;
-								} else {
-									// technically this is a problem indicating an incomplete set of witnesses, as we are not ending an existing object, so would be good to alert user that they need a birth witness for this case
-								}
-							}
-						}
-						// now we assemble our proposals from the live objects:
-						for(var a : liveObjects.keySet()) {
-							for(var t : liveObjects.get(a).keySet()) {
-								WitnessedObject proposed = liveObjects.get(a).get(t);
-								if(proposed.deathWitness == null) continue;
-								this.proposals.add(proposed);
-							}
-						}
-						this.provider.propose(proposals);
+						events.add(e);
 					} catch(JSONException e) {
-						System.out.println("Failed to parse: " + obj.toString());
+						System.out.println("failed deserialising: " + obj.toString());
 					}
 				}
+				
+				// process births first, in tick order, followed by changes, followed by deaths
+				events.sort(null);
+				
+				// iterate through events in time order and create objects for these:
+				for(var evt : events) {
+					System.out.println("processing event: " + evt.toString());
+					Long a = evt.addr;
+					Long t = evt.tick;
+					
+					ObjectInfo newObj = null;
+					if(evt.witness.type == ObjectWitness.eventType.BIRTH || evt.witness.type == ObjectWitness.eventType.CHANGE) {
+						DataType ty = evt.witness.newDataType; 
+						newObj = new ObjectInfo(String.format("%d_%d", evt.tick, evt.addr), String.format("my%s", ty.getName()), (long)ty.getLength(), evt.addr, evt.tick, null, ty);
+						System.out.println("new object: " + newObj.toString());
+					}
+					if(!liveObjects.containsKey(evt.addr)) liveObjects.put(a,  new TreeMap<>());
+					var objsAtAddr = liveObjects.get(evt.addr);
+					Map.Entry<Long, WitnessedObject> prevObj = objsAtAddr.floorEntry(evt.tick);
+					// if there is an object currently live at this tick, we need to kill it now
+					if(prevObj != null) {
+						System.out.println("found prev object: "+prevObj.getValue().toString());
+						WitnessedObject prevValue = prevObj.getValue();
+						Long prevDeath = prevValue.obj.getDeath();
+						if(prevDeath == null || (prevDeath != null && prevDeath > t)) {
+							// if the prev object either alove, or is marked as dead but its death is after that witnessed by this event, then update its death to the current event
+							System.out.println("prev object dies now "+t);
+							prevObj.getValue().obj.setDeath(evt.tick);
+							prevValue.deathWitness = evt.witness;
+						}
+					} else if (evt.witness.type == ObjectWitness.eventType.CHANGE || evt.witness.type == ObjectWitness.eventType.DEATH){
+						System.out.println("death without birth?");
+						// technically this is a problem indicating an incomplete set of witnesses, as we are not ending an existing object. Would be good to alert user that there may be another birth witness to identify for this case
+					}
+					if(evt.witness.type == ObjectWitness.eventType.BIRTH || evt.witness.type == ObjectWitness.eventType.CHANGE) {
+						Map.Entry<Long, WitnessedObject> nextObj = objsAtAddr.ceilingEntry(evt.tick);
+						// if there is an object live later than this one, we need to set ourselves to die before it starts
+						ObjectWitness deathWitness = null;
+						if(nextObj != null && newObj != null) {
+							System.out.println("next object exists--don't intrude on its life: "+nextObj.getValue().toString());
+							newObj.setDeath(nextObj.getKey());
+							deathWitness = nextObj.getValue().birthWitness; // our death is thus witnessed by the birth of the new object after us
+						}
+						// now we can insert ourselves comfortably within the midst of whatever already exists: 
+						objsAtAddr.put(evt.tick, new WitnessedObject(evt.witness, deathWitness, newObj));
+					}
+				}
+				for(var a : liveObjects.navigableKeySet()) {
+					var objsAtAddr = liveObjects.get(a);
+					for(var t : objsAtAddr.navigableKeySet()) {
+						proposals.add(objsAtAddr.get(t));
+					}
+				}
+				this.provider.propose(proposals);
 			}
 		}
 		

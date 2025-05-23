@@ -8,7 +8,7 @@ import tracemadness.View;
 public class AccessListingView implements View {
 
 	public static enum VIEW_TYPE {
-		ADDR_WINDOW_VIEW, PC_WINDOW_VIEW, TIME_WINDOW_VIEW, ADDR_TIME_WINDOW_VIEW, PC_TIME_WINDOW_VIEW, FUNCTION_RUN_VIEW, VALUE_VIEW
+		ADDR_WINDOW_VIEW, PC_WINDOW_VIEW, TIME_WINDOW_VIEW, ADDR_TIME_WINDOW_VIEW, PC_TIME_WINDOW_VIEW, FUNCTION_RUN_VIEW, VALUE_VIEW, ALL_VIEW
 	}
 
 	public static enum VIEW_PARAM {
@@ -64,6 +64,8 @@ public class AccessListingView implements View {
 		case VALUE_VIEW:
 			return String.format("Value == %d",
 					this.viewParams.get(VIEW_PARAM.VALUE.name()));
+		case ALL_VIEW:
+			return "All accesses";
 		}
 		return "";
 	}
@@ -128,6 +130,9 @@ public class AccessListingView implements View {
 					+ "  filter (op.opcode == 2 or op.opcode == 3 or op.opcode == 74)\n",
 					this.viewParams.get(VIEW_PARAM.TIME_START.name()),
 					this.viewParams.get(VIEW_PARAM.TIME_END.name()));
+		case ALL_VIEW:
+			return String.format("for op in operationruns \n"
+					+ "  filter (op.opcode == 2 or op.opcode == 3 or op.opcode == 74)\n");
 		}
 		return "";
 	}
@@ -161,6 +166,8 @@ public class AccessListingView implements View {
 			return new String[] { VIEW_PARAM.TIME_START.name() };
 		case VALUE_VIEW:
 			return new String[] { VIEW_PARAM.VALUE.name() };
+		case ALL_VIEW:
+			return new String[] { };
 		}
 		return null;
 	}

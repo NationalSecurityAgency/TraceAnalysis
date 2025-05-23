@@ -10,6 +10,7 @@ let x={
 	addr:op.opcode == 2 ? op.assocd_addr : op.addr, 
 	size:op.size, 
 	val:op.val, 
+	raw:to_string(op.raw), 
 	is_write: op.opcode != 2,
 	pc:ins.pc,
 	disas:ins.disas}

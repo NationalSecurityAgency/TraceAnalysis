@@ -10,6 +10,6 @@ public class WitnessedObject {
 		this.obj = obj;
 	}
 	public String toString() {
-		return String.format("%s (birth witness %s; death witness %s)", obj.toString(), birthWitness.toString(), deathWitness.toString());
+		return String.format("%s (birth witness %s; death witness %s)", obj.toString(), birthWitness != null ? birthWitness.toString() : "<none>", deathWitness != null ? deathWitness.toString() : "<none>");
 	}
 }

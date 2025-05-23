@@ -70,4 +70,7 @@ public class ObjectInfo {
 	public void setType(DataType ty) {
 		this.ty = ty;
 	}
+	public String toString() {
+		return String.format("%s %s @ 0x%x (%s-%s)", ty.getName(), name, base, birth == null ? "?" : birth.toString(), death == null ? "?" : death.toString());
+	}
 }

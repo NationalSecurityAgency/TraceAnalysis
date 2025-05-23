@@ -42,11 +42,11 @@ import ghidra.program.model.data.ShortDataType;
 import ghidra.program.model.data.StructureDataType;
 import resources.Icons;
 import tracemadness.memorylisting.MemoryListingProvider;
-import tracemadness.accesslisting.AccessListingProvider;
 import tracemadness.accessmap.AccessMapProvider;
 import tracemadness.calltree.CallTreeProvider;
 import tracemadness.modulemap.ModuleMapProvider;
 import tracemadness.objectmanager.ObjectManagerProvider;
+import tracemadness.accesslisting.AccessListingProvider;
 import tracemadness.settings.Setting;
 import tracemadness.settings.SettingsProvider;
 import tracemadness.targetnav.CodeTargetProvider;
@@ -320,10 +320,7 @@ public class MadnessPluginProvider extends ComponentProvider {
 	@SuppressWarnings("serial")
 	public final AbstractAction MODULES_BUTTON = new AbstractAction("Module Map") {
 		public void actionPerformed(ActionEvent ev) {
-			//if (plugin.moduleMapProvider == null) {
-			//	plugin.moduleMapProvider = new ModuleMapProvider(plugin, "Module Map", plugin.moduleMap);
-			//	plugin.moduleMapProvider.addToTool();
-			//}
+
 			plugin.moduleMapProvider.setVisible(true);
 		}
 	};

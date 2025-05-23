@@ -65,7 +65,26 @@ public class ObjectCache implements MadnessQueryResultListener {
 			return;
 		}
 	}
+	public TreeMap<Long, ObjectInfo> getLiveObjects(Long tick) {
+		TreeMap<Long, ObjectInfo> live = new TreeMap<>();
+		for(var obj : objects) {
+			if(obj.getBirth() <= tick && (obj.getDeath() == null || obj.getDeath() >= tick) ) {
+				live.put(obj.getBase(), obj);
+			}
+		}
+		return live;
+	}
 
+	public ObjectInfo getObjectContaining(Long addr, Long tick) {
+		TreeMap<Long, ObjectInfo> live = getLiveObjects(tick);
+		Long base = live.floorKey(addr);
+		if(base == null) return null;
+		ObjectInfo obj = live.get(base);
+		if(base + obj.getSize() > addr) {
+			return obj;
+		}
+		return null;
+	}
 	public ObjectInfo getObjectAt(Long addr, Long tick) {
 		if(!this.addressToObjectsMap.containsKey(addr)) return null;
 		if(!this.addressToObjectsMap.get(addr).containsKey(tick)) return null;
@@ -139,7 +158,8 @@ public class ObjectCache implements MadnessQueryResultListener {
 					String name = ob.getString("name");
 					long base = ob.getLong("base");
 					long birth = ob.getLong("start");
-					long death = ob.getLong("end");
+					Long death = null;
+					if(!ob.isNull("end")) death = ob.getLong("end");
 					long size = ob.getLong("size");
 					String typeId = ob.getString("type");
 					UniversalID typeUID = new UniversalID(Long.parseLong(typeId));

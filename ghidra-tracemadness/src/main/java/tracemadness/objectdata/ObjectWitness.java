@@ -16,7 +16,7 @@ public class ObjectWitness {
 	public Integer regNum; // for REG_WRITE register 
 	public DataType newDataType; // on birth or change
 	public String moduleName;
-	public long offset;
+	public Long offset;
 
 	public ObjectWitness(String description, DataTypeManager mgr) {
 		JSONObject obj = new JSONObject(description);
@@ -53,7 +53,7 @@ public class ObjectWitness {
 		this.moduleName = obj.getString("moduleName");
 		this.offset = obj.getLong("offset");
 	}
-	public ObjectWitness(eventType type, insFeature feature, Integer reg, DataType newType, String module, long offset) {
+	public ObjectWitness(eventType type, insFeature feature, Integer reg, DataType newType, String module, Long offset) {
 		this.type = type;
 		this.feature = feature;
 		this.regNum = reg;
