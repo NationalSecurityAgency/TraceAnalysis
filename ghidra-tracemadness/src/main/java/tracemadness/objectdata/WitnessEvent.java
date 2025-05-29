@@ -3,11 +3,14 @@ package tracemadness.objectdata;
 public class WitnessEvent implements Comparable<WitnessEvent> {
 	public ObjectWitness witness;
 	public Long tick;
-	public Long addr;
+	private Long addr;
 	public WitnessEvent(ObjectWitness w, Long tick, Long addr) {
 		this.witness = w;
 		this.tick = tick;
 		this.addr = addr;
+	}
+	public Long getAddr() {
+		return this.addr - witness.objOffset;
 	}
 	public int compareTo(WitnessEvent w) {
 		if(!this.witness.type.equals(w.witness.type)) {

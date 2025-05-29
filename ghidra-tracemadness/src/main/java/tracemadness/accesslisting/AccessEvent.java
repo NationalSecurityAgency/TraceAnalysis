@@ -57,4 +57,11 @@ public class AccessEvent {
 	public boolean isWrite() {
 		return write;
 	}
+	public String toString() {
+		String val_str = "";
+		for(byte b : val) {
+			val_str += String.format("%02x", b);
+		}
+		return String.format("@ tick %d, %s [0x%x]:%d = %s", tick, write ? "WRITE":"READ", addr, size, val_str);
+	}
 }

@@ -325,7 +325,7 @@ public class MadnessPluginProvider extends ComponentProvider {
 		}
 	};
 
-	@SuppressWarnings("serial")
+	/*@SuppressWarnings("serial")
 	public final AbstractAction ACCESS_MAP_BUTTON = new AbstractAction("Access Map") {
 		public void actionPerformed(ActionEvent ev) {
 			if (plugin.accessMapProvider == null) {
@@ -334,7 +334,7 @@ public class MadnessPluginProvider extends ComponentProvider {
 			}
 			plugin.accessMapProvider.setVisible(true);
 		}
-	};
+	};*/
 
 	@SuppressWarnings("serial")
 	public final AbstractAction MEMORY_LISTING_BUTTON = new AbstractAction("Space Listing") {

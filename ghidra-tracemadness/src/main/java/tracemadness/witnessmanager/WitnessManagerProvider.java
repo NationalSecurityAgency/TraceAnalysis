@@ -292,6 +292,7 @@ public class WitnessManagerProvider extends ComponentProvider implements ActionC
 						ObjectWitness  w= plugin.getObjectCache().getWitness(module, offset);
 						if(w == null) continue;
 						WitnessEvent e = new WitnessEvent(w, tick, addr);
+						System.out.println("New event: "+e.toString());
 						events.add(e);
 					} catch(JSONException e) {
 						System.out.println("failed deserialising: " + obj.toString());
@@ -304,17 +305,17 @@ public class WitnessManagerProvider extends ComponentProvider implements ActionC
 				// iterate through events in time order and create objects for these:
 				for(var evt : events) {
 					System.out.println("processing event: " + evt.toString());
-					Long a = evt.addr;
+					Long a = evt.getAddr();
 					Long t = evt.tick;
 					
 					ObjectInfo newObj = null;
 					if(evt.witness.type == ObjectWitness.eventType.BIRTH || evt.witness.type == ObjectWitness.eventType.CHANGE) {
 						DataType ty = evt.witness.newDataType; 
-						newObj = new ObjectInfo(String.format("%d_%d", evt.tick, evt.addr), String.format("my%s", ty.getName()), (long)ty.getLength(), evt.addr, evt.tick, null, ty);
+						newObj = new ObjectInfo(String.format("%d_%d", evt.tick, evt.getAddr()), String.format("my%s", ty.getName()), (long)ty.getLength(), evt.getAddr(), evt.tick, null, ty);
 						System.out.println("new object: " + newObj.toString());
 					}
-					if(!liveObjects.containsKey(evt.addr)) liveObjects.put(a,  new TreeMap<>());
-					var objsAtAddr = liveObjects.get(evt.addr);
+					if(!liveObjects.containsKey(evt.getAddr())) liveObjects.put(a,  new TreeMap<>());
+					var objsAtAddr = liveObjects.get(evt.getAddr());
 					Map.Entry<Long, WitnessedObject> prevObj = objsAtAddr.floorEntry(evt.tick);
 					// if there is an object currently live at this tick, we need to kill it now
 					if(prevObj != null) {

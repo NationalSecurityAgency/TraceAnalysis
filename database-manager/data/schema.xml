@@ -293,6 +293,9 @@
       <description>The string name of the module in which the witness instruction is found</description>
       <join table="modules" attr="path" />
     </attr>
+    <attr name="objectOffset" type="int">
+      <description>The offset within the object to which the witness instruction refers</description>
+    </attr>
     <attr name="offset" type="int">
       <description>The offset within the module in which the witness instruction is found</description>
     </attr>

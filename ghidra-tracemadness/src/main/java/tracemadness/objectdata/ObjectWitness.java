@@ -11,6 +11,7 @@ public class ObjectWitness {
 	public enum eventType {BIRTH, CHANGE, DEATH}
 	public enum insFeature {REG_WRITE, LOAD_VAL, LOAD_ADDR, STORE_VAL, STORE_ADDR}
 	
+	public long objOffset;
 	public eventType type;
 	public insFeature feature;
 	public Integer regNum; // for REG_WRITE register 
@@ -35,6 +36,8 @@ public class ObjectWitness {
 		}
 		this.moduleName = obj.getString("moduleName");
 		this.offset = obj.getLong("offset");
+		if(obj.isNull("objectOffset")) this.objOffset = 0L;
+		else this.objOffset = obj.getLong("objectOffset");
 	}
 	public ObjectWitness(JSONObject obj, DataTypeManager mgr) {
 		this.type = eventType.valueOf(obj.getString("eventType"));
@@ -52,14 +55,17 @@ public class ObjectWitness {
 		}
 		this.moduleName = obj.getString("moduleName");
 		this.offset = obj.getLong("offset");
+		if(obj.isNull("objectOffset")) this.objOffset = 0L;
+		else this.objOffset = obj.getLong("objectOffset");
 	}
-	public ObjectWitness(eventType type, insFeature feature, Integer reg, DataType newType, String module, Long offset) {
+	public ObjectWitness(eventType type, long objOffset, insFeature feature, Integer reg, DataType newType, String module, Long offset) {
 		this.type = type;
 		this.feature = feature;
 		this.regNum = reg;
 		this.newDataType = newType;
 		this.moduleName = module;
 		this.offset = offset;
+		this.objOffset = objOffset;
 	}
 	public JSONObject toJSON() {
 		JSONObject ans = new JSONObject();
@@ -73,6 +79,7 @@ public class ObjectWitness {
 		}
 		ans.put("moduleName", this.moduleName);
 		ans.put("offset", this.offset);
+		ans.put("objectOffset", this.objOffset);
 		return ans;
 	}
 	public String getKey() {
@@ -106,6 +113,6 @@ public class ObjectWitness {
 		return "";
 	}
 	public String toString() {
-		return String.format("%s @ %s:0x%x %s", this.getEvent(), moduleName, offset, this.getFeature());
+		return String.format("%s (offset 0x%x) @ %s:0x%x %s", this.getEvent(), this.objOffset, moduleName, offset, this.getFeature());
 	}
 }

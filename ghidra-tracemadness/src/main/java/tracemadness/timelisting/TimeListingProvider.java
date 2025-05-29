@@ -465,13 +465,23 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			this.plugin.getTool().addAction(a);
 		}
 		{
+			CreateBirthSizeWitnessContextAction a = new CreateBirthSizeWitnessContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Create object-birth witness of known size" }, null, "witness"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
 			CreateDeathWitnessContextAction a = new CreateDeathWitnessContextAction(this);
-			a.setPopupMenuData(new MenuData(new String[] { "Create object-death witness of known type" }, null, "witness"));
+			a.setPopupMenuData(new MenuData(new String[] { "Create object-death witness" }, null, "witness"));
 			this.plugin.getTool().addAction(a);
 		}
 		{
 			CreateChangeWitnessContextAction a = new CreateChangeWitnessContextAction(this);
 			a.setPopupMenuData(new MenuData(new String[] { "Create object-change witness of known type" }, null, "witness"));
+			this.plugin.getTool().addAction(a);
+		}
+		{
+			CreateChangeSizeWitnessContextAction a = new CreateChangeSizeWitnessContextAction(this);
+			a.setPopupMenuData(new MenuData(new String[] { "Create object-change witness of known size" }, null, "witness"));
 			this.plugin.getTool().addAction(a);
 		}
 		
@@ -1661,10 +1671,13 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			default:
 				return;
 			}
+			Long objOffset = provider.plugin.getUserInputLong("offset", "offset");
+			if (objOffset == null)
+				return;
 			DataType ty = provider.plugin.getUserInputDataType();
 			if (ty == null)
 				return;
-			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.BIRTH, feature, reg, ty, module, offset);
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.BIRTH, objOffset, feature, reg, ty, module, offset);
 			plugin.madness.setWitness(w);
 		}
 	}
@@ -1703,7 +1716,10 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			default:
 				return;
 			}
-			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.DEATH, feature, reg, null, module, offset);
+			Long objOffset = provider.plugin.getUserInputLong("offset", "offset");
+			if (objOffset == null)
+				return;
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.DEATH, objOffset, feature, reg, null, module, offset);
 			plugin.madness.setWitness(w);
 		}
 	}
@@ -1742,10 +1758,133 @@ public class TimeListingProvider extends ComponentProvider implements FieldLocat
 			default:
 				return;
 			}
+			Long objOffset = provider.plugin.getUserInputLong("offset", "offset");
+			if (objOffset == null)
+				return;
 			DataType ty = provider.plugin.getUserInputDataType();
 			if (ty == null)
 				return;
-			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.CHANGE, feature, reg, ty, module, offset);
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.CHANGE, objOffset, feature, reg, ty, module, offset);
+			plugin.madness.setWitness(w);
+		}
+	}
+	private class CreateChangeSizeWitnessContextAction extends OperationAction {
+		public CreateChangeSizeWitnessContextAction(TimeListingProvider provider) {
+			super(provider, "Create Witness", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_W, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			TimeListingOperationField  sf = (TimeListingOperationField) f;
+			Long pc = sf.getPC();
+			ProgramLocation loc = plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(pc), false);
+			String module = loc.getProgram().getDomainFile().getPathname();
+			long offset = loc.getAddress().getOffset()-loc.getProgram().getImageBase().getOffset();
+			Integer reg = null;
+			ObjectWitness.insFeature feature; 
+			switch(sf.getEffectType()) {
+			case DataflowEffectType.REG_WRITE:
+				reg = (int)(long)sf.getDest();
+				feature = ObjectWitness.insFeature.REG_WRITE;
+				break;
+			case DataflowEffectType.MEM_WRITE:
+				feature = ObjectWitness.insFeature.STORE_VAL;
+				break;
+			case DataflowEffectType.MEM_READ:
+				feature = ObjectWitness.insFeature.LOAD_VAL;
+				break;
+			case DataflowEffectType.MEM_ACCESS:
+				if(sf.isWrite()) feature = ObjectWitness.insFeature.LOAD_ADDR;
+				else feature = ObjectWitness.insFeature.STORE_ADDR;
+				break;
+			default:
+				return;
+			}
+			Long objOffset = provider.plugin.getUserInputLong("offset", "offset");
+			if (objOffset == null)
+				return;
+			Long sz = provider.plugin.getUserInputLong("size", "size");
+			if (sz == null)
+				return;
+			String typename = provider.plugin.getUserInputString("typename", "typename");
+			if (typename == null)
+				return;
+			String name = provider.plugin.getUserInputString("name", "name");
+			if (name == null)
+				return;
+			DataType ty = new StructureDataType(typename, (int) sz.longValue());
+			DataTypeManager mgr = provider.plugin.getDataTypeManager();
+			if(mgr == null) {
+				return;
+			}
+			int txid = mgr.startTransaction("adding new type");
+			mgr.addDataType(ty, null);
+			mgr.endTransaction(txid, true);
+			DataType newType = mgr.getDataType("/" + ty.getName());
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.CHANGE, objOffset, feature, reg, newType, module, offset);
+			plugin.madness.setWitness(w);
+		}
+	}
+	private class CreateBirthSizeWitnessContextAction extends OperationAction {
+		public CreateBirthSizeWitnessContextAction(TimeListingProvider provider) {
+			super(provider, "Create Witness", provider.plugin.getName());
+			setKeyBindingData(new KeyBindingData(KeyEvent.VK_W, 0));
+		}
+
+		@Override
+		public void actionPerformed(ActionContext context) {
+			TimeListingActionContext tc = (TimeListingActionContext) context;
+			Field f = tc.getField();
+			TimeListingOperationField  sf = (TimeListingOperationField) f;
+			Long pc = sf.getPC();
+			ProgramLocation loc = plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(pc), false);
+			String module = loc.getProgram().getDomainFile().getPathname();
+			long offset = loc.getAddress().getOffset()-loc.getProgram().getImageBase().getOffset();
+			Integer reg = null;
+			ObjectWitness.insFeature feature; 
+			switch(sf.getEffectType()) {
+			case DataflowEffectType.REG_WRITE:
+				reg = (int)(long)sf.getDest();
+				feature = ObjectWitness.insFeature.REG_WRITE;
+				break;
+			case DataflowEffectType.MEM_WRITE:
+				feature = ObjectWitness.insFeature.STORE_VAL;
+				break;
+			case DataflowEffectType.MEM_READ:
+				feature = ObjectWitness.insFeature.LOAD_VAL;
+				break;
+			case DataflowEffectType.MEM_ACCESS:
+				if(sf.isWrite()) feature = ObjectWitness.insFeature.LOAD_ADDR;
+				else feature = ObjectWitness.insFeature.STORE_ADDR;
+				break;
+			default:
+				return;
+			}
+			Long objOffset = provider.plugin.getUserInputLong("offset", "offset");
+			if (objOffset == null)
+				return;
+			Long sz = provider.plugin.getUserInputLong("size", "size");
+			if (sz == null)
+				return;
+			String typename = provider.plugin.getUserInputString("typename", "typename");
+			if (typename == null)
+				return;
+			String name = provider.plugin.getUserInputString("name", "name");
+			if (name == null)
+				return;
+			DataType ty = new StructureDataType(typename, (int) sz.longValue());
+			DataTypeManager mgr = provider.plugin.getDataTypeManager();
+			if(mgr == null) {
+				return;
+			}
+			int txid = mgr.startTransaction("adding new type");
+			mgr.addDataType(ty, null);
+			mgr.endTransaction(txid, true);
+			DataType newType = mgr.getDataType("/" + ty.getName());
+			ObjectWitness w = new ObjectWitness(ObjectWitness.eventType.BIRTH, objOffset, feature, reg, newType, module, offset);
 			plugin.madness.setWitness(w);
 		}
 	}

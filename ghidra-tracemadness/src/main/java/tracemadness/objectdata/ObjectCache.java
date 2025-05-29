@@ -9,9 +9,11 @@ import java.util.TreeMap;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import ghidra.program.model.data.Array;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeComponent;
 import ghidra.program.model.data.DataTypeManager;
+import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureInternal;
 import ghidra.util.UniversalID;
 import tracemadness.MadnessPlugin;
@@ -112,36 +114,48 @@ public class ObjectCache implements MadnessQueryResultListener {
 		}
 		return null;
 	}
-	
-	private String getTypePath(StructureInternal st, int offset, int size) {
-		DataTypeComponent component = st.getComponentContaining(offset);
-		if(component == null) {
-			return String.format("field_0x%x", offset);
+	private String getTypePath(DataType ty, int offset, int size, boolean hasPrefix) {
+		if(ty instanceof Structure) {
+			Structure st = (Structure) ty;
+			DataTypeComponent component = st.getComponentContaining(offset);
+			if(component == null || component.getDataType() == null || component.getDataType().isNotYetDefined()) {
+				return String.format("unknown_0x%x_%d", offset, size);
+			}
+			DataType subtype = component.getDataType();
+			String ans = component.getFieldName();
+			if(subtype == null || ans == null) {
+				ans = String.format("[%d:%d]", offset, offset+size);
+				if(hasPrefix) ans = "."+ans;
+				return ans;
+			}
+			String subpath = getTypePath(subtype, offset-component.getOffset(), size, true);
+			if(hasPrefix) ans = "."+ans;
+			return ans + (subpath != null ? "." + subpath : "");
+		} else if(ty instanceof Array) {
+			Array ar = (Array)ty;
+			int elen = ar.getElementLength();
+			DataType etype = ar.getDataType();
+			
+			String subpath = getTypePath(etype, offset%elen, size, true);
+			return String.format("%s[%d]", hasPrefix ? "" : "this", offset/elen) + (subpath != null ? "."+subpath : "");
+		} else if(offset == 0 && size == ty.getLength()) {
+			return null;
 		}
-		DataType subtype = component.getDataType();
-		String ans = component.getFieldName();
-		if(subtype == null || ans == null) {
-			ans = String.format("[%d:%d]", offset, offset+size);
-		}
-		if(subtype instanceof StructureInternal) {
-			return ans + "." + getTypePath((StructureInternal)subtype, offset-component.getOffset(), size);
-		} else if(offset != component.getOffset()) {
-			int off = offset - component.getOffset();
-			ans += String.format("[%d:%d]", off, off+size);
-		}
-		return ans;
+		return (hasPrefix ? "." : "") + "<invalid>";
 	}
 	
 	public String getName(Long addr, long tick, int size) {
 		if(this.addressToObjectsMap.containsKey(addr)) {
 			TreeMap<Long, ObjectInfo> objsAt = this.addressToObjectsMap.get(addr);
 			Map.Entry<Long, ObjectInfo> entry = objsAt.floorEntry(tick);
-			if(entry != null && entry.getValue().getDeath() >= tick) {
+			if(entry != null && (entry.getValue().getDeath() == null || entry.getValue().getDeath() >= tick)) {
 				ObjectInfo obj = entry.getValue();
 				DataType t = obj.getType();
 				String ans = obj.getName();
-				if(t != null && t instanceof StructureInternal) {
-					return ans + "." + getTypePath((StructureInternal) t, (int)(addr-obj.getBase()), size);
+				if(t != null) {
+					String subpath = getTypePath(t, (int)(addr-obj.getBase()), size, true);
+					if(subpath == null) return ans;
+					return ans + subpath;
 				}
 				return ans;
 			}

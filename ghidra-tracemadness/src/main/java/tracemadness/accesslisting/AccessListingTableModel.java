@@ -27,6 +27,7 @@ public class AccessListingTableModel extends ThreadedTableModel<AnnotatedAccessE
 	public Address referenceAddress = null;
 	public AccessListingProvider provider;
 	public MadnessPlugin plugin;
+	public ArrayList<AccessEvent> blankSpace;
 	private ArrayList<AnnotatedAccessEvent> space;
 	public View view;
 
@@ -44,6 +45,7 @@ public class AccessListingTableModel extends ThreadedTableModel<AnnotatedAccessE
 	public void loadSpace()  {
 		String[] params = { view.toAQLString() }; // TODO filters
 		this.space = new ArrayList<>();
+		this.blankSpace = new ArrayList<>();
 
 		try {
 			plugin.runQuery("accesses", params, this, "accesses");
@@ -112,7 +114,8 @@ public class AccessListingTableModel extends ThreadedTableModel<AnnotatedAccessE
 		public String getColumnName() { return "Module"; }
 		@Override
 		public String getValue(AnnotatedAccessEvent rowObject, Settings settings, Object data, ServiceProvider services) throws IllegalArgumentException {
-			return "?";//plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(rowObject.event.getPC()), false).getProgram().getName();
+			if(MadnessPlugin.flatApi != null) return plugin.getProgramLocation(MadnessPlugin.flatApi.toAddr(rowObject.event.getPC()), false).getProgram().getName();
+			return "?";
 		}
 	}
 	private class RawTableColumn extends AbstractDynamicTableColumn<AnnotatedAccessEvent, String, Object> {
@@ -147,7 +150,7 @@ public class AccessListingTableModel extends ThreadedTableModel<AnnotatedAccessE
 		public String getColumnName() { return "Field"; }
 		@Override
 		public String getValue(AnnotatedAccessEvent rowObject, Settings settings, Object data, ServiceProvider services) throws IllegalArgumentException {
-			return rowObject.obj == null ? "<none>" : plugin.getObjectCache().getName(rowObject.obj.getBase(), rowObject.event.getTick(), (int)(long)rowObject.obj.getSize());
+			return rowObject.obj == null ? "<none>" : plugin.getObjectCache().getName(rowObject.event.getAddr(), rowObject.event.getTick(), rowObject.event.getSize());
 		}
 	}
 	private class IsWriteTableColumn extends AbstractDynamicTableColumn<AnnotatedAccessEvent, Boolean, Object> {
@@ -204,6 +207,7 @@ public class AccessListingTableModel extends ThreadedTableModel<AnnotatedAccessE
 				try {
 					JSONObject obj = results.get(i);
 					AccessEvent e = new AccessEvent(obj);
+					this.blankSpace.add(e);
 					ObjectInfo info = plugin.getObjectCache().getObjectContaining(e.getAddr(), e.getTick());
 					Function f = null;
 					if(MadnessPlugin.flatApi != null) {

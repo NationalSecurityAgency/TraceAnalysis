@@ -42,6 +42,7 @@ public class WitnessManagerTableModel extends ThreadedTableModel<ObjectWitness, 
 		descriptor.addVisibleColumn(new ModuleOffsetTableColumn());
 		descriptor.addVisibleColumn(new EventTypeTableColumn());
 		descriptor.addVisibleColumn(new InsFeatureTableColumn());
+		descriptor.addVisibleColumn(new ObjectOffsetTableColumn());
 		return descriptor;
 	}
 
@@ -58,7 +59,7 @@ public class WitnessManagerTableModel extends ThreadedTableModel<ObjectWitness, 
 			return rowObject.moduleName;
 		}
 	}
-	private class ModuleOffsetTableColumn extends AbstractDynamicTableColumn<ObjectWitness, Long, Object> {
+	private class ModuleOffsetTableColumn extends AbstractDynamicTableColumn<ObjectWitness, String, Object> {
 
 		@Override
 		public String getColumnName() {
@@ -66,9 +67,9 @@ public class WitnessManagerTableModel extends ThreadedTableModel<ObjectWitness, 
 		}
 
 		@Override
-		public Long getValue(ObjectWitness rowObject, Settings settings, Object data,
+		public String getValue(ObjectWitness rowObject, Settings settings, Object data,
 				ServiceProvider services) throws IllegalArgumentException {
-			return rowObject.offset;
+			return String.format("0x%x", rowObject.offset);
 		}
 	}
 
@@ -85,6 +86,20 @@ public class WitnessManagerTableModel extends ThreadedTableModel<ObjectWitness, 
 			return rowObject.getEvent();
 		}
 	}
+	private class ObjectOffsetTableColumn extends AbstractDynamicTableColumn<ObjectWitness, String, Object> {
+
+		@Override
+		public String getColumnName() {
+			return "Object offset";
+		}
+
+		@Override
+		public String getValue(ObjectWitness rowObject, Settings settings, Object data,
+				ServiceProvider services) throws IllegalArgumentException {
+			return String.format("0x%x", rowObject.objOffset);
+		}
+	}
+
 
 
 	private class InsFeatureTableColumn extends AbstractDynamicTableColumn<ObjectWitness, String, Object> {

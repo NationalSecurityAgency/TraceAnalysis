@@ -14,6 +14,7 @@ import java.util.Map;
 import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -26,12 +27,14 @@ import docking.action.DockingAction;
 import docking.action.MenuData;
 import docking.action.ToolBarData;
 import docking.widgets.label.GDLabel;
+import generic.theme.GIcon;
 import ghidra.util.table.GhidraTable;
 import ghidra.util.table.GhidraTableFilterPanel;
 import ghidra.util.table.GhidraThreadedTablePanel;
 import resources.Icons;
 import tracemadness.MadnessPlugin;
 import tracemadness.View;
+import tracemadness.accessmap.AccessMapProvider;
 import tracemadness.objectdata.ObjectInfo;
 import tracemadness.timelisting.TimeListingLayoutModel;
 
@@ -74,7 +77,6 @@ public class AccessListingProvider extends ComponentProvider implements ActionCo
 		this.history = new ArrayList<>();
 		this.historyCursor = 0;
 		this.model = new AccessListingTableModel(this.plugin, this, new AccessListingView());
-		this.model.loadSpace();
 		tablePanel = new GhidraThreadedTablePanel<>(model, 1000);
 		buildPanel();
 		this.setObjMode(DISPLAY_MODE.ALL);
@@ -152,6 +154,19 @@ public class AccessListingProvider extends ComponentProvider implements ActionCo
 			refreshAction.setEnabled(true);
 			this.addLocalAction(refreshAction);
 		}
+		{
+			DockingAction a = new DockingAction("Show access map", getName()) {
+				@Override
+				public void actionPerformed(ActionContext arg0) {
+					AccessMapProvider p = new AccessMapProvider(self.plugin, "Access Map", self.model.blankSpace, self.plugin.getObjectCache().getObjects());
+					self.plugin.getTool().addComponentProvider(p, true);
+					p.setVisible(true);
+				}
+			};
+			a.setToolBarData(new ToolBarData(new GIcon("icon.plugin.register.provider"), null));
+			a.setEnabled(true);
+			this.addLocalAction(a);
+		}
 
 	}
 
@@ -186,82 +201,51 @@ public class AccessListingProvider extends ComponentProvider implements ActionCo
 		statusPanel.setLayout(layout);
 		statusLabel = new JLabel("Status:");
 
-		ButtonGroup fieldButtonGroup = new ButtonGroup();
-		JRadioButton fieldOnlyValid = new JRadioButton();
-		JRadioButton fieldOnlyInvalid = new JRadioButton();
-		JRadioButton fieldAll = new JRadioButton();
-		JLabel fieldOnlyValidLabel = new JLabel("Only valid fields");
-		JLabel fieldOnlyInvalidLabel = new JLabel("Only invalid fields");
-		JLabel fieldAllLabel = new JLabel("All fields");
 		fieldStatusLabel = new JLabel("");
-		fieldButtonGroup.add(fieldAll);
-		fieldButtonGroup.add(fieldOnlyValid);
-		fieldButtonGroup.add(fieldOnlyInvalid);
 		
-		ButtonGroup objButtonGroup = new ButtonGroup();
-		JLabel objOnlyValidLabel = new JLabel("Only valid objects");
-		JLabel objOnlyInvalidLabel = new JLabel("Only invalid objects");
-		JLabel objAllLabel = new JLabel("All objects");
 		objStatusLabel = new JLabel("");
-		JRadioButton objOnlyValid = new JRadioButton();
-		JRadioButton objOnlyInvalid = new JRadioButton();
-		JRadioButton objAll = new JRadioButton();
-		objButtonGroup.add(objAll);
-		objButtonGroup.add(objOnlyValid);
-		objButtonGroup.add(objOnlyInvalid);
 
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
 
+		String[] objOptions = {"All accesses with and without valid objects", "Only accesses with valid objects", "Only accesses with invalid objects"};
+		DISPLAY_MODE[] modes = {DISPLAY_MODE.ALL, DISPLAY_MODE.VALID, DISPLAY_MODE.INVALID};
+		JComboBox<String> objSel = new JComboBox<>(objOptions);
+		objSel.setSelectedIndex(0);
+		objSel.addActionListener(
+				new AbstractAction("Object select") { public void actionPerformed(ActionEvent ev) {
+					if(!(ev.getSource() instanceof JComboBox)) return;
+					self.setObjMode(modes[((JComboBox)ev.getSource()).getSelectedIndex()]);
+				};
+		});
+
+		String[] fieldOptions = {"All accesses with and without valid fields", "Only accesses with valid obejct fields", "Only accesses with invalid object fields"};
+		JComboBox<String> fieldSel = new JComboBox<>(fieldOptions);
+		fieldSel.setSelectedIndex(0);
+		fieldSel.addActionListener(
+				new AbstractAction("Field select") { public void actionPerformed(ActionEvent ev) {
+					if(!(ev.getSource() instanceof JComboBox)) return;
+					self.setFieldMode(modes[((JComboBox)ev.getSource()).getSelectedIndex()]);
+				};
+		});
+		
 		layout.setHorizontalGroup(layout.createSequentialGroup()
 				.addGroup(layout.createParallelGroup()
 						.addComponent(statusLabel)
 						.addComponent(objStatusLabel)
 						.addComponent(fieldStatusLabel))
 				.addGroup(layout.createParallelGroup()
-						.addComponent(objAllLabel)
-						.addComponent(fieldAllLabel))
-				.addGroup(layout.createParallelGroup()
-						.addComponent(objAll)
-						.addComponent(fieldAll))
-				.addGroup(layout.createParallelGroup()
-						.addComponent(objOnlyValidLabel)
-						.addComponent(fieldOnlyValidLabel))
-				.addGroup(layout.createParallelGroup()
-						.addComponent(objOnlyValid)
-						.addComponent(fieldOnlyValid))
-				.addGroup(layout.createParallelGroup()
-						.addComponent(objOnlyInvalidLabel)
-						.addComponent(fieldOnlyInvalidLabel))
-				.addGroup(layout.createParallelGroup()
-						.addComponent(objOnlyInvalid)
-						.addComponent(fieldOnlyInvalid)));
+						.addComponent(objSel)
+						.addComponent(fieldSel)));
 		layout.setVerticalGroup(layout.createSequentialGroup()
 				.addGroup(layout.createParallelGroup()
 						.addComponent(statusLabel))
 				.addGroup(layout.createParallelGroup()
 						.addComponent(objStatusLabel)
-						.addComponent(objAllLabel)
-						.addComponent(objAll)
-						.addComponent(objOnlyValidLabel)
-						.addComponent(objOnlyValid)
-						.addComponent(objOnlyInvalidLabel)
-						.addComponent(objOnlyInvalid))
+						.addComponent(objSel))
 				.addGroup(layout.createParallelGroup()
 						.addComponent(fieldStatusLabel)
-						.addComponent(fieldAllLabel)
-						.addComponent(fieldAll)
-						.addComponent(fieldOnlyValidLabel)
-						.addComponent(fieldOnlyValid)
-						.addComponent(fieldOnlyInvalidLabel)
-						.addComponent(fieldOnlyInvalid)));
-		objAll.addActionListener(new AbstractAction("All objects") { public void actionPerformed(ActionEvent ev) { self.setObjMode(DISPLAY_MODE.ALL); } });
-		objOnlyValid.addActionListener(new AbstractAction("Valid objects") { public void actionPerformed(ActionEvent ev) { self.setObjMode(DISPLAY_MODE.VALID); } });
-		objOnlyInvalid.addActionListener(new AbstractAction("Invalid objects") { public void actionPerformed(ActionEvent ev) { self.setObjMode(DISPLAY_MODE.INVALID); } });
-		fieldAll.addActionListener(new AbstractAction("All fields") { public void actionPerformed(ActionEvent ev) { self.setObjMode(DISPLAY_MODE.ALL); } });
-		fieldOnlyValid.addActionListener(new AbstractAction("Valid fields") { public void actionPerformed(ActionEvent ev) { self.setObjMode(DISPLAY_MODE.VALID); } });
-		fieldOnlyInvalid.addActionListener(new AbstractAction("Invalid fields") { public void actionPerformed(ActionEvent ev) { self.setObjMode(DISPLAY_MODE.INVALID); } });
-		
+						.addComponent(fieldSel)));
 		
 		statusPanel.add(statusLabel);
 		
@@ -441,7 +425,8 @@ public class AccessListingProvider extends ComponentProvider implements ActionCo
 		public boolean isEnabledForContext(ActionContext context) {
 			if(!super.isEnabledForContext(context)) {
 				return false;
-			}AnnotatedAccessEvent sel = this.provider.getSelectedObject();
+			}
+			AnnotatedAccessEvent sel = this.provider.getSelectedObject();
 			if(sel == null || sel.obj == null) {
 				return false;
 			}

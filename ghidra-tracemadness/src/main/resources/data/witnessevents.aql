@@ -7,13 +7,13 @@ for ins in instructionruns filter ins.pc == pc
 let addr=
 		(w.insFeature == "REG_WRITE" ? first(for op in operationruns filter op.tick == ins.tick filter op.bank == 0 and op.addr == w.regNum return op.val)
 		:
-			(w.insFeature == "LOAD_VAL" ? first(for op in operationruns filter op.opcode == 2 return op.val)
+			(w.insFeature == "LOAD_VAL" ? first(for op in operationruns filter op.tick == ins.tick filter op.opcode == 2 return op.val)
 			:
-				(w.insFeature == "LOAD_ADDR" ? first(for op in operationruns filter op.opcode == 2 return op.assocd_addr)
+				(w.insFeature == "LOAD_ADDR" ? first(for op in operationruns filter op.tick == ins.tick filter op.opcode == 2 return op.assocd_addr)
 				:
-					(w.insFeature == "STORE_VAL" ? first(for op in operationruns filter op.bank == 1 return op.val)
+					(w.insFeature == "STORE_VAL" ? first(for op in operationruns filter op.tick == ins.tick  filter op.bank == 1 return op.val)
 					:
-						(w.insFeature == "STORE_ADDR" ? first(for op in operationruns filter op.bank == 1 return op.addr) : 0)))))
+						(w.insFeature == "STORE_ADDR" ? first(for op in operationruns filter op.tick == ins.tick filter op.bank == 1 return op.addr) : 0)))))
 	
 
-return {module:mod, offset:offset, tick:ins.tick, addr:addr}
+return {module:mod, offset:offset, tick:ins.tick, addr:addr, f:w.insFeature}
