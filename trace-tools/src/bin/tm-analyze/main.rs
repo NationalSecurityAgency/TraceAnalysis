@@ -4,6 +4,7 @@ use std::{fs, io};
 use tracing_subscriber::filter::EnvFilter;
 
 mod analyze;
+mod beta;
 mod old;
 
 /// Analyzes a trace using the `Dataflow` engine from the traceanalysis repo.
@@ -21,6 +22,10 @@ struct Args {
     /// Emits debug logs as JSON (TA_LOG env var is still used to determine what is logged)
     #[arg(long)]
     debug_json: bool,
+
+    /// Use "new dataflow" API (contains breaking changes to output)
+    #[arg(long)]
+    beta: bool,
 }
 
 fn main() -> Result<()> {
@@ -40,8 +45,15 @@ fn main() -> Result<()> {
     let _ = std::env::var("GHIDRA_INSTALL_DIR")
         .with_context(|| format!("GHIDRA_INSTALL_DIR is not set."))?;
 
+    if args.old && args.beta {
+        eprintln!("New dataflow API does not support old trace format");
+        std::process::exit(1);
+    }
+
     if args.old {
         old::analyze(open_input(&args.input)?)
+    } else if args.beta {
+        beta::analyze(open_input(&args.input)?)
     } else {
         analyze::analyze(open_input(&args.input)?)
     }
