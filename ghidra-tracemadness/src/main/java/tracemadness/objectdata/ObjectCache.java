@@ -171,9 +171,9 @@ public class ObjectCache implements MadnessQueryResultListener {
 					String key = ob.getString("_key");
 					String name = ob.getString("name");
 					long base = ob.getLong("base");
-					long birth = ob.getLong("start");
+					long birth = ob.getLong("birth");
 					Long death = null;
-					if(!ob.isNull("end")) death = ob.getLong("end");
+					if(!ob.isNull("death")) death = ob.getLong("death");
 					long size = ob.getLong("size");
 					String typeId = ob.getString("type");
 					UniversalID typeUID = new UniversalID(Long.parseLong(typeId));

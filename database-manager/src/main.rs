@@ -197,6 +197,7 @@ async fn main() -> Result<()> {
                 cli::DocFormat::Html => schema::HTML_TEMPLATE,
                 cli::DocFormat::Dot => schema::DOT_TEMPLATE,
                 cli::DocFormat::Md => schema::MD_TEMPLATE,
+                cli::DocFormat::DuckDB => schema::DUCKDB_TEMPLATE,
                 cli::DocFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(schema)?);
                     return Ok(());

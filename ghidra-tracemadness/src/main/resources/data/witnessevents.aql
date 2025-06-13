@@ -1,6 +1,6 @@
 for w in witnesses
 let mod = w.moduleName
-let offset = w.offset
+let offset = w.moduleOffset
 let pc=first(for m in modules filter m.path == mod limit 1 return m.base + offset)
 
 for ins in instructionruns filter ins.pc == pc

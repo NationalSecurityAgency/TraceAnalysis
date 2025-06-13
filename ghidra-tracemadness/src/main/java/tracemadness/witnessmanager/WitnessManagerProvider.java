@@ -285,7 +285,7 @@ public class WitnessManagerProvider extends ComponentProvider implements ActionC
 				for(JSONObject obj : results) {
 					try {
 						String module = obj.getString("module");
-						Long offset = obj.getLong("offset");
+						Long offset = obj.getLong("moduleOffset");
 						Long tick = obj.getLong("tick");
 						Long addr = obj.getLong("addr");
 						

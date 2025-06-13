@@ -35,7 +35,7 @@ public class ObjectWitness {
 			this.regNum = null;
 		}
 		this.moduleName = obj.getString("moduleName");
-		this.offset = obj.getLong("offset");
+		this.offset = obj.getLong("moduleOffset");
 		if(obj.isNull("objectOffset")) this.objOffset = 0L;
 		else this.objOffset = obj.getLong("objectOffset");
 	}
@@ -54,7 +54,7 @@ public class ObjectWitness {
 			this.regNum = null;
 		}
 		this.moduleName = obj.getString("moduleName");
-		this.offset = obj.getLong("offset");
+		this.offset = obj.getLong("moduleOffset");
 		if(obj.isNull("objectOffset")) this.objOffset = 0L;
 		else this.objOffset = obj.getLong("objectOffset");
 	}
@@ -78,7 +78,7 @@ public class ObjectWitness {
 			ans.put("regNum", regNum);
 		}
 		ans.put("moduleName", this.moduleName);
-		ans.put("offset", this.offset);
+		ans.put("moduleOffset", this.offset);
 		ans.put("objectOffset", this.objOffset);
 		return ans;
 	}

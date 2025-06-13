@@ -13,6 +13,7 @@ pub static SCHEMA: OnceCell<Schema> = OnceCell::const_new();
 pub static HTML_TEMPLATE: &'static str = include_str!("template.html");
 pub static DOT_TEMPLATE: &'static str = include_str!("template.dot");
 pub static MD_TEMPLATE: &'static str = include_str!("template.md");
+pub static DUCKDB_TEMPLATE: &'static str = include_str!("template.duckdb");
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]

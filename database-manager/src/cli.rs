@@ -85,6 +85,7 @@ pub enum DocFormat {
     Json,
     Dot,
     Md,
+    DuckDB,
 }
 
 impl std::fmt::Display for DocFormat {

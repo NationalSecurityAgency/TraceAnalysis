@@ -127,8 +127,8 @@ public class ArangoClient {
 		doc.addAttribute("name", name);
 		doc.addAttribute("base", base);
 		doc.addAttribute("size", size);
-		doc.addAttribute("start", starttick);
-		doc.addAttribute("end", endtick);
+		doc.addAttribute("birth", starttick);
+		doc.addAttribute("death", endtick);
 		doc.addAttribute("type", ty.getUniversalID().toString());
 
 		

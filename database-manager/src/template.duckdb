@@ -1,0 +1,11 @@
+LOAD spatial;
+
+{% for node in nodes %}
+CREATE TABLE {{node.name}} (_key uint64{% for attr in node.attributes %}, {{attr.name}} {% if attr.type == "int" %}uint64{% endif %}{% if attr.type == "uint128" %}uint128{% endif %}{% if attr.type == "string" %}VARCHAR{% endif %}{% if attr.type == "bool" %}BOOLEAN{% endif %}{% endfor %});
+CREATE UNIQUE INDEX {{node.name}}_key_idx on {{node.name}} (_key);{% endfor %}
+
+{% for edge in edges %}
+CREATE TABLE {{edge.name}} (_key VARCHAR, _from uint64, _to uint64{% for attr in edge.attributes %}, {{attr.name}} {% if attr.type == "int" %}uint64{% endif %}{% if attr.type == "string" %}VARCHAR{% endif %}{% if attr.type == "bool" %}BOOLEAN{% endif %}{% endfor %});
+CREATE INDEX {{edge.name}}_from_idx on {{edge.name}} (_from);
+CREATE INDEX {{edge.name}}_to_idx on {{edge.name}} (_to);
+{% endfor %}

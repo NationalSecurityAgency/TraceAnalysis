@@ -15,19 +15,19 @@
 	let regvals=merge(
 	  for c,ce in 1..1 outbound r functionruncontext
 	  filter ce.bank == 0
-	  return {[ce.offset]:c.val})
+	  return {[ce.off]:c.val})
 	let regdeps=merge(
 	  for c,ce in 1..1 outbound r functionruncontext
 	  filter ce.bank == 0
-	  return {[ce.offset]:c.index})
+	  return {[ce.off]:c.index})
 	let stackvals=merge(
 	  for c,ce in 1..1 outbound r functionruncontext
 	  filter ce.bank == 1
-	  return {[ce.offset]:c.val})
+	  return {[ce.off]:c.val})
 	let stackdeps=merge(
 	  for c,ce in 1..1 outbound r functionruncontext
 	  filter ce.bank == 1
-	  return {[ce.offset]:c.index})
+	  return {[ce.off]:c.index})
 	let retdep=first(for v,e in 1..1 outbound r retdep return v.index)
 	let parent=first(for v,e in 1..1 inbound r calls return v.starttick)
 	let children=(for v,e in 1..1 outbound r calls return v.starttick)
