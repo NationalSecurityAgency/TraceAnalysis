@@ -21,6 +21,7 @@
 pub mod address;
 pub mod analysis;
 pub mod architecture;
+pub mod beta;
 pub mod database;
 pub mod datastore;
 pub mod delta;
