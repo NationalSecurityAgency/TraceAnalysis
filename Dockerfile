@@ -105,6 +105,7 @@ RUN wget https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghid
 # Install QEMU
 ARG QEMU_VERSION=9.0.0
 RUN set -eux; \
+    apt-get install --no-install-recommends -y python3-distlib; \
     wget "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz"; \
     tar -xJvf ./qemu-${QEMU_VERSION}.tar.xz; \
     mv ./qemu-${QEMU_VERSION} /opt/qemu; \
@@ -148,8 +149,8 @@ ADD https://repo1.maven.org/maven2/org/json/json/${JAVA_JSON_DATE}/json-${JAVA_J
     /usr/share/java/json-${JAVA_JSON_DATE}.jar
 
 # Install extra rust utilities
-RUN cargo install --locked mdbook just
-
+RUN cargo install --locked --version 0.4.48 mdbook; \
+    cargo install --locked just
 ###############################################################################
 
 FROM build-deps as builder
