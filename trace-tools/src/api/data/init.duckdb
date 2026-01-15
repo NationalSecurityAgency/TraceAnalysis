@@ -1,0 +1,137 @@
+LOAD spatial;
+
+
+CREATE TABLE operationruns (_key uint64, index uint64, tick uint64, opcode uint64, size uint64, bank uint64, addr uint64, val uint128, raw VARCHAR, assocd_addr uint64, assocd_bank uint64, assocd_size uint64);
+CREATE UNIQUE INDEX operationruns_key_idx on operationruns (_key);
+CREATE INDEX operationruns_idx_1 on operationruns (index);
+CREATE INDEX operationruns_idx_2 on operationruns (tick);
+CREATE INDEX operationruns_idx_3 on operationruns (bank, addr);
+CREATE INDEX operationruns_idx_4 on operationruns (assocd_bank, assocd_addr, val);
+CREATE INDEX operationruns_idx_5 on operationruns (assocd_bank, assocd_addr);
+
+CREATE TABLE instructionruns (_key uint64, tick uint64, pc uint64, disas VARCHAR);
+CREATE UNIQUE INDEX instructionruns_key_idx on instructionruns (_key);
+CREATE INDEX instructionruns_idx_1 on instructionruns (pc);
+CREATE INDEX instructionruns_idx_2 on instructionruns (tick);
+
+CREATE TABLE functionruns (_key uint64, callsite uint64, pc uint64, starttick uint64, startindex uint64, endindex uint64, retval uint64, stackdepth uint64, stackptr uint64);
+CREATE UNIQUE INDEX functionruns_key_idx on functionruns (_key);
+CREATE INDEX functionruns_idx_1 on functionruns (startindex);
+CREATE INDEX functionruns_idx_2 on functionruns (starttick);
+CREATE INDEX functionruns_idx_3 on functionruns (pc);
+
+CREATE TABLE syscallruns (_key uint64, callsite uint64, tick uint64, number uint64, retval uint64);
+CREATE UNIQUE INDEX syscallruns_key_idx on syscallruns (_key);
+
+CREATE TABLE buffers (_key uint64, startindex uint64, data VARCHAR, iswrite uint64, addr uint64, size uint64);
+CREATE UNIQUE INDEX buffers_key_idx on buffers (_key);
+CREATE INDEX buffers_idx_1 on buffers (addr);
+CREATE INDEX buffers_idx_2 on buffers (startindex);
+
+CREATE TABLE functions (_key VARCHAR, name VARCHAR, namespace VARCHAR, module VARCHAR, addr uint64, size uint64);
+CREATE UNIQUE INDEX functions_key_idx on functions (_key);
+CREATE INDEX functions_idx_1 on functions (addr);
+CREATE INDEX functions_idx_2 on functions (addr);
+CREATE INDEX functions_idx_3 on functions (namespace, name);
+
+CREATE TABLE blocks (_key VARCHAR, module VARCHAR, addr uint64, size uint64);
+CREATE UNIQUE INDEX blocks_key_idx on blocks (_key);
+CREATE INDEX blocks_idx_1 on blocks (addr);
+
+CREATE TABLE modules (_key uint64, base uint64, size uint64, name VARCHAR, path VARCHAR);
+CREATE UNIQUE INDEX modules_key_idx on modules (_key);
+CREATE INDEX modules_idx_1 on modules (base);
+
+CREATE TABLE constantuses (_key uint64, val uint64, raw VARCHAR, size uint64);
+CREATE UNIQUE INDEX constantuses_key_idx on constantuses (_key);
+
+CREATE TABLE opcodes (_key uint64, name VARCHAR, value uint64);
+CREATE UNIQUE INDEX opcodes_key_idx on opcodes (_key);
+
+CREATE TABLE registers (_key uint64, name VARCHAR, value uint64, size uint64, is_gp BOOLEAN);
+CREATE UNIQUE INDEX registers_key_idx on registers (_key);
+
+CREATE TABLE objects (_key uint64, name VARCHAR, base uint64, size uint64, birth uint64, death uint64, typeid uint64);
+CREATE UNIQUE INDEX objects_key_idx on objects (_key);
+CREATE INDEX objects_idx_1 on objects (base);
+CREATE INDEX objects_idx_2 on objects (birth);
+CREATE INDEX objects_idx_3 on objects (death);
+
+CREATE TABLE witnesses (moduleName VARCHAR, objectOffset uint64, moduleOffset uint64, eventType VARCHAR, typeId uint64, insFeature VARCHAR, regNum uint64);
+
+CREATE TABLE memaccesses (_key uint64, index uint64, addr uint64, size uint64, tick uint64, pc uint64, val uint64, is_write BOOLEAN, disas VARCHAR);
+CREATE UNIQUE INDEX memaccesses_key_idx on memaccesses (_key);
+CREATE INDEX memaccesses_idx_1 on memaccesses (index);
+CREATE INDEX memaccesses_idx_2 on memaccesses (addr);
+CREATE INDEX memaccesses_idx_3 on memaccesses (tick);
+CREATE INDEX memaccesses_idx_4 on memaccesses (pc);
+
+
+
+
+
+CREATE TABLE inputdep (_key VARCHAR, _from uint64, _to uint64, maybe uint64, pos uint64);
+CREATE INDEX inputdep_from_idx on inputdep (_from);
+CREATE INDEX inputdep_to_idx on inputdep (_to);
+
+CREATE TABLE addrdep (_key VARCHAR, _from uint64, _to uint64, maybe uint64);
+CREATE INDEX addrdep_from_idx on addrdep (_from);
+CREATE INDEX addrdep_to_idx on addrdep (_to);
+
+CREATE TABLE cfdep (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX cfdep_from_idx on cfdep (_from);
+CREATE INDEX cfdep_to_idx on cfdep (_to);
+
+CREATE TABLE infunctionrun (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX infunctionrun_from_idx on infunctionrun (_from);
+CREATE INDEX infunctionrun_to_idx on infunctionrun (_to);
+
+CREATE TABLE calls (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX calls_from_idx on calls (_from);
+CREATE INDEX calls_to_idx on calls (_to);
+
+CREATE TABLE bufferof (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX bufferof_from_idx on bufferof (_from);
+CREATE INDEX bufferof_to_idx on bufferof (_to);
+
+CREATE TABLE retdep (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX retdep_from_idx on retdep (_from);
+CREATE INDEX retdep_to_idx on retdep (_to);
+
+CREATE TABLE functionruncontext (_key VARCHAR, _from uint64, _to uint64, bank uint64, off uint64);
+CREATE INDEX functionruncontext_from_idx on functionruncontext (_from);
+CREATE INDEX functionruncontext_to_idx on functionruncontext (_to);
+
+CREATE TABLE syscallruncontext (_key VARCHAR, _from uint64, _to uint64, bank uint64, off uint64);
+CREATE INDEX syscallruncontext_from_idx on syscallruncontext (_from);
+CREATE INDEX syscallruncontext_to_idx on syscallruncontext (_to);
+
+CREATE TABLE makessyscall (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX makessyscall_from_idx on makessyscall (_from);
+CREATE INDEX makessyscall_to_idx on makessyscall (_to);
+
+CREATE TABLE constinputdep (_key VARCHAR, _from uint64, _to uint64, pos uint64);
+CREATE INDEX constinputdep_from_idx on constinputdep (_from);
+CREATE INDEX constinputdep_to_idx on constinputdep (_to);
+
+CREATE TABLE constaddrdep (_key VARCHAR, _from uint64, _to uint64);
+CREATE INDEX constaddrdep_from_idx on constaddrdep (_from);
+CREATE INDEX constaddrdep_to_idx on constaddrdep (_to);
+
+CREATE TABLE callerof (_key VARCHAR, _from VARCHAR, _to VARCHAR);
+CREATE INDEX callerof_from_idx on callerof (_from);
+CREATE INDEX callerof_to_idx on callerof (_to);
+
+CREATE TABLE successorof (_key VARCHAR, _from VARCHAR, _to VARCHAR);
+CREATE INDEX successorof_from_idx on successorof (_from);
+CREATE INDEX successorof_to_idx on successorof (_to);
+
+CREATE TABLE blockof (_key VARCHAR, _from VARCHAR, _to VARCHAR);
+CREATE INDEX blockof_from_idx on blockof (_from);
+CREATE INDEX blockof_to_idx on blockof (_to);
+
+CREATE TABLE cdg (_key VARCHAR, _from VARCHAR, _to VARCHAR);
+CREATE INDEX cdg_from_idx on cdg (_from);
+CREATE INDEX cdg_to_idx on cdg (_to);
+
+

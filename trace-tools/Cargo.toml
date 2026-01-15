@@ -3,6 +3,19 @@ name = "trace-tools"
 version = "0.1.0"
 edition.workspace = true
 
+[lib]
+name = "tm_api"
+path = "src/api/tm-api.rs"
+
+[[bin]]
+name = "tm-q"
+
+[[bin]]
+name = "tm-api-server"
+
+[[bin]]
+name = "tm-cli"
+
 [[bin]]
 name = "tm-analyze"
 
@@ -62,3 +75,4 @@ serde_json.workspace = true
 trace.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+duckdb.workspace = true

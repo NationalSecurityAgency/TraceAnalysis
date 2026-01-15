@@ -2,7 +2,12 @@ LOAD spatial;
 
 {% for node in nodes %}
 CREATE TABLE {{node.name}} (_key uint64{% for attr in node.attributes %}, {{attr.name}} {% if attr.type == "int" %}uint64{% endif %}{% if attr.type == "uint128" %}uint128{% endif %}{% if attr.type == "string" %}VARCHAR{% endif %}{% if attr.type == "bool" %}BOOLEAN{% endif %}{% endfor %});
-CREATE UNIQUE INDEX {{node.name}}_key_idx on {{node.name}} (_key);{% endfor %}
+CREATE UNIQUE INDEX {{node.name}}_key_idx on {{node.name}} (_key);
+{% for idx in node.indexes %}
+CREATE INDEX {{node.name}}_idx_{{loop.index}} on {{node.name}} ({% for field in idx.fields %}{% if loop.first %}{% else %}, {% endif %}{{field}}{% endfor %});
+{% endfor %}
+{% endfor %}
+
 
 {% for edge in edges %}
 CREATE TABLE {{edge.name}} (_key VARCHAR, _from uint64, _to uint64{% for attr in edge.attributes %}, {{attr.name}} {% if attr.type == "int" %}uint64{% endif %}{% if attr.type == "string" %}VARCHAR{% endif %}{% if attr.type == "bool" %}BOOLEAN{% endif %}{% endfor %});

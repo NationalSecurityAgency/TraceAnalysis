@@ -9,9 +9,10 @@ use serde_json;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
-use trace_tools::index::spacetime_index::SpacetimeRTree;
-use trace_tools::index::string_index::StringIndex;
-use trace_tools::index::Serializable;
+#[path = "../index/mod.rs"] mod index;
+use crate::index::spacetime_index::SpacetimeRTree;
+use crate::index::string_index::StringIndex;
+use crate::index::Serializable;
 
 /// Counts the type of each record in the trace.
 #[derive(Parser, Debug)]

@@ -3,14 +3,14 @@ FROM ubuntu:22.04 AS build-deps
 RUN apt-get update -yq && apt-get install --no-install-recommends -y \
     bison build-essential bzr cmake curl file flex g++ git git-lfs graphviz libbfd-dev \
     libclang-dev libglib2.0-dev libsqlite3-dev libssl-dev maven mercurial ninja-build \
-    openjdk-21-jdk openssh-client pkg-config python3 python3-pip subversion unzip wget && \
+    openjdk-21-jdk openssh-client pkg-config python3 python3-pip subversion unzip wget python3-distlib && \
     pip install --upgrade pip
 
 # Taken from: official rust:bullseye (1.80.0)
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION=1.80.0
+    RUST_VERSION=1.92.0
 RUN set -eux; \
     dpkgArch="$(dpkg --print-architecture)"; \
     case "${dpkgArch##*-}" in \
@@ -151,6 +151,15 @@ ADD https://repo1.maven.org/maven2/org/json/json/${JAVA_JSON_DATE}/json-${JAVA_J
 RUN cargo install --locked mdbook just
 
 ###############################################################################
+
+ADD https://github.com/duckdb/duckdb/releases/download/v1.4.3/libduckdb-linux-amd64.zip /tmp/duckdb.zip
+RUN cd /tmp; unzip duckdb.zip; mv libduckdb.* /usr/local/lib/; mv duck*.h* /usr/include/
+WORKDIR /root
+RUN curl -L -O https://github.com/duckdb/duckdb/releases/download/v1.4.3/duckdb_cli-linux-amd64.zip
+RUN unzip duckdb_cli-linux-amd64.zip
+RUN rm duckdb_cli-linux-amd64.zip
+RUN printf 'INSTALL spatial;\n' | ./duckdb 
+
 
 FROM build-deps as builder
 

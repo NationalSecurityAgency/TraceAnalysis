@@ -8,8 +8,11 @@ use std::ops::ControlFlow;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
 use trace::{record::Record, RuntimeError};
-use trace_tools::index::spacetime_index::SpacetimeRTree;
-use trace_tools::index::{Serializable, SpacetimeBlock};
+
+#[path = "../index/mod.rs"] mod index;
+use crate::index::spacetime_index::SpacetimeRTree;
+use crate::index::{Serializable, SpacetimeBlock};
+
 use tracing_subscriber::EnvFilter;
 
 /// Filters

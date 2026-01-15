@@ -8,7 +8,7 @@ use std::str::FromStr;
 use trace::reader::{cont, try_cont, TraceReader};
 use trace::record::parse_unknown;
 use trace::{record::Record, RuntimeError};
-use trace_tools::collector;
+#[path = "../collector.rs"] mod collector;
 use tracing_subscriber::EnvFilter;
 
 /// Filters

@@ -22,6 +22,7 @@ build:
     cp {{ project-root }}/target/release/tm-ftrace   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-strace   {{ build-dir }}/trace-management/
     cp {{ project-root }}/target/release/tm-index   {{ build-dir }}/trace-management/
+    cp {{ project-root }}/target/release/tm-cli   {{ build-dir }}/trace-management/
 
 doc:
     #!/usr/bin/env bash

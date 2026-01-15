@@ -12,9 +12,12 @@ use trace::{
 };
 
 use dataflow::prelude::SpaceKind;
-use trace_tools::index::spacetime_index::SpacetimeIndex;
-use trace_tools::index::string_index::StringIndex;
-use trace_tools::index::{Indexer, Operation};
+
+#[path = "../index/mod.rs"] mod index;
+use crate::index::spacetime_index::{SpacetimeRTree,SpacetimeIndex};
+use crate::index::string_index::StringIndex;
+use crate::index::{Indexer, Operation};
+
 use tracing_subscriber::filter::EnvFilter;
 
 /// Counts the type of each record in the trace.

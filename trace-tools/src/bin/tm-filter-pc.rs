@@ -11,7 +11,7 @@ use trace::{
     record::{MemRead, MemWrite, Meta, ModelEffectsBegin, ModelEffectsEnd, Record, RegWrite},
     RuntimeError,
 };
-use trace_tools::collector;
+#[path = "../collector.rs"] mod collector;
 use tracing_subscriber::EnvFilter;
 
 /// Filters
