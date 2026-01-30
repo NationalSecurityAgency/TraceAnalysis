@@ -10,7 +10,7 @@ use serde_json;
 use std::sync::Arc;
 use std::thread;
 
-use tm_api::{TmApi,InstructionSet};
+use trace_tools::api::{TmApi,InstructionSet,TypeInfo};
 
 use clap::{Parser, Subcommand};
 
@@ -62,6 +62,23 @@ enum Commands {
     MinTick {},
     MaxTick {},
     Accesses {start_addr: u64, end_addr: u64, start_tick: u64, end_tick: u64},
+
+    AddType {name: String, kind: String, count: Option<u64>, size: Option<u64>, element_type: Option<u64>},
+    SetArrayCount {typename: String, count: u64},
+    SetTypeName {typename: String, newname: String},
+    AddStructureField {typename: String, offset: u64, fieldname: String, fieldtype: String},
+    DelStructureField {typename: String, offset: u64},
+    
+    AddObject {name: Option<String>, base : u64, size : u64, typeid: u64, birth: u64, death: u64},
+    DelObject {name: String},
+    ListObjects {},
+    GetObjectUses {name: String},
+
+    AddWitness {module: String, offset: u64, obj_event_type: String, obj_typeid: u64, insn_effect: String, reg_num: Option<u64>},
+    DelWitness {witnessid: u64},
+    ListWitnesses {},
+    GetWitnessEvents {witnessid: u64},
+
 }
 
 
@@ -90,7 +107,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn handle_client(mut stream: TcpStream, api: &TmApi) -> io::Result<()> {
+fn handle_client(mut stream: TcpStream, api: &TmApi) -> Result<()> {
     loop {
 	let mut length_bytes = [0u8; 4];
 	stream.read_exact(&mut length_bytes)?;
@@ -161,6 +178,42 @@ fn handle_client(mut stream: TcpStream, api: &TmApi) -> io::Result<()> {
 		let res = api.get_accesses_from_rect(start_addr, end_addr, start_tick, end_tick).unwrap();
 		for io in res { ans.extend_from_slice(serde_json::to_string(&io).unwrap().as_bytes()); ans.extend_from_slice("\n".as_bytes()); }
 	    },
+	    Commands::AddType {name, kind, count, size, element_type} => {
+		if kind == "array" {
+		    if let Some(count) = count {
+			if let Some(element_type) = element_type {
+			    api.add_type(TypeInfo::Array{name, count: count as usize, element_type})?;
+			}
+		    }
+		} else if kind == "pointer" {
+		    if let Some(size) = size {
+			if let Some(element_type) = element_type {
+			    api.add_type(TypeInfo::Pointer{name, size: size as usize,ty:  element_type})?;
+			}
+		    }
+		    
+		} else if kind == "structure" {
+		    if let Some(size) = size {
+			api.add_type(TypeInfo::Structure{name, size: size as usize, fields: Vec::new()})?;
+		    }
+		} else if kind == "sized" {
+		    if let Some(size) = size {
+			api.add_type(TypeInfo::Sized{name, size: size as usize})?;
+		    }
+		}
+	    },
+	    Commands::AddStructureField {typename, offset, fieldname, fieldtype} => {},
+	    Commands::DelStructureField {typename, offset} => {},
+	    Commands::SetArrayCount {typename, count} => {},
+	    Commands::SetTypeName {typename, newname} => {},
+	    Commands::AddObject {name, base , size , typeid, birth, death} => {},
+	    Commands::DelObject {name} => {},
+	    Commands::ListObjects {} => {},
+	    Commands::GetObjectUses {name} => {},
+	    Commands::AddWitness {module, offset, obj_event_type, obj_typeid, insn_effect, reg_num} => {},
+	    Commands::DelWitness {witnessid} => {},
+	    Commands::ListWitnesses {} => {},
+	    Commands::GetWitnessEvents {witnessid} => {},
 	}
 	let data = ans;
 	let length_bytes = data.len().to_le_bytes();

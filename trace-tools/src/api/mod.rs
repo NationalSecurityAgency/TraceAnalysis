@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{anyhow,Result};
 use std::collections::HashMap;
 
+use std::fmt;
 use std::fs;
 use dataflow::prelude::SpaceKind;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ use std::sync::Arc;
 use duckdb::{params, Connection, Result as DuckDbResult};
 use duckdb;
 
-#[path = "../index/mod.rs"] mod index;
+use crate::index;
 use crate::index::spacetime_index::SpacetimeRTree;
 use crate::index::string_index::StringIndex;
 use crate::index::Serializable;
@@ -24,11 +25,11 @@ pub struct TmApi {
 }
 
 
-type InstructionTick = u64;
-type OperationIndex = u64;
-type Pc = u64;
-type Address = u64;
-type TypeId = u64;
+pub type InstructionTick = u64;
+pub type OperationIndex = u64;
+pub type Pc = u64;
+pub type Address = u64;
+pub type TypeId = u64;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,7 +38,12 @@ pub struct BufferInfo {
     death: InstructionTick,
     addr: Address,
 }
-    
+
+impl fmt::Display for BufferInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Address: 0x{:x}, Lifetime: {}-{}", self.addr, self.birth, self.death)
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MemorySet {
@@ -89,6 +95,12 @@ pub struct InstructionRun {
     disas : String,
 }
 
+impl fmt::Display for InstructionRun {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Tick: {} 0x{:x} {})", self.tick, self.pc, &self.disas)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OperationRun {
     tick : u64,
@@ -117,11 +129,80 @@ pub struct OperationsWithInstructions {
 
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum TypeInfo {
+    Array{name: String, count: usize, element_type: TypeId},
+    Pointer{name: String, size : usize, ty : TypeId},
+    Structure{name: String, size: usize, fields: Vec<FieldInfo>},
+    Sized{name: String, size : usize},
+}
+
+impl fmt::Display for TypeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	match self {
+	    TypeInfo::Array{name, count, element_type} => {
+		let ty = get_type(*element_type);
+		write!(f, "{} : [{}]:{}", name, ty.unwrap(), count)
+	    },
+	    TypeInfo::Pointer{name, size, ty} => {
+		let ty = get_type(*ty);
+		write!(f, "{}: *({}):{}", name.clone(), ty.unwrap(), *size)
+	    },
+	    TypeInfo::Structure{name, size, fields} => {
+		write!(f, "{}: (size: {})\n", name.clone(), *size)?;
+		for field in fields {
+		    write!(f, "  {}", field)?;
+		}
+		Ok(())
+	    },
+	    TypeInfo::Sized{name, size} => {
+		write!(f, "{}: (size: {})", name, *size)
+	    },
+	}
+    }
+}
+
+pub fn get_type(ty : TypeId) -> Option<TypeInfo> {
+    unimplemented!();
+}
+
+pub fn size_of(ty : TypeId) -> Result<usize> {
+    if let Some(ty) = get_type(ty) {
+	return Ok(match ty {
+	    TypeInfo::Array{name, count, element_type} => count * size_of(element_type)?,
+	    TypeInfo::Pointer{name, size, ty} => size,
+	    TypeInfo::Structure{name, size, fields} => size,
+	    TypeInfo::Sized{name, size} => size,
+	});
+    }
+    Err(anyhow!("no such type: {:?}", ty))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FieldInfo {
+    offset : i64,
+    name: String, 
+    type_id: TypeId,
+    
+}
+
+impl fmt::Display for FieldInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	write!(f, "{}: {} : {}", self.offset, self.name, self.type_id)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Module {
     base : Address,
     size: u64,
     name: String,
     path: String,
+}
+
+impl fmt::Display for Module {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	write!(f, "0x{:x}-0x{:x}: {}", self.base, self.base+self.size, self.path)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -134,6 +215,12 @@ pub struct Object {
     death: InstructionTick,
 }
 
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	write!(f, "{} : {} : Address 0x{:x}-0x{:x}, Lifetime: {}-{}", self.name, self.type_id, self.base, self.base+self.size, self.birth, self.death)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum InstructionEffectType {
     RegWrite(u64),
@@ -142,6 +229,28 @@ pub enum InstructionEffectType {
     MemReadValue,
     MemReadAddress,
 }
+impl fmt::Display for InstructionEffectType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	match self {
+	    InstructionEffectType::RegWrite(num) => {
+		write!(f, "register {} written", num)
+	    },
+	    InstructionEffectType::MemWriteValue => {
+		write!(f, "memory value written")
+	    },
+	    InstructionEffectType::MemWriteAddress => {
+		write!(f, "memory address written")
+	    },
+	    InstructionEffectType::MemReadValue => {
+		write!(f, "memory value read")
+	    },
+	    InstructionEffectType::MemReadAddress => {
+		write!(f, "memory address read")
+	    },
+	}
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum WitnessedEvent{ 
@@ -150,11 +259,43 @@ pub enum WitnessedEvent{
     ObjectDeath(Pc,InstructionTick,Address,TypeId),
 }
 
+impl fmt::Display for WitnessedEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	match self {
+	    WitnessedEvent::ObjectBirth(pc, tick, addr, typeid) => {
+		write!(f, "birth of object of type {} at address 0x{:x} occurred at tick {} (pc {:x})", typeid, addr, tick, pc)
+	    },
+	    WitnessedEvent::ObjectDeath(pc, tick, addr, typeid) => {
+		write!(f, "death of object of type {} at address 0x{:x} occurred at tick {} (pc {:x})", typeid, addr, tick, pc)
+	    },
+	    WitnessedEvent::ObjectExists(pc, tick, addr, typeid) => {
+		write!(f, "object exists of type {} at address 0x{:x} occurred at tick {} (pc {:x})", typeid, addr, tick, pc)
+	    },
+	}
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum WitnessEvent{ 
     ObjectBirth(TypeId),
     ObjectExists(TypeId),
     ObjectDeath(TypeId),
+}
+
+impl fmt::Display for WitnessEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	match self {
+	    WitnessEvent::ObjectBirth(typeid) => {
+		write!(f, "birth of object of type {}", typeid)
+	    },
+	    WitnessEvent::ObjectDeath(typeid) => {
+		write!(f, "death of object of type {}", typeid)
+	    },
+	    WitnessEvent::ObjectExists(typeid) => {
+		write!(f, "object exists of type {}", typeid)
+	    },
+	}
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -165,11 +306,28 @@ pub struct Witness {
     event: WitnessEvent,
 }
 
+impl fmt::Display for Witness {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	write!(f, "At {}:0x{:x} witness {} at {}", self.module_path, self.module_offset, self.event, self.effect_type)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MemoryInfo {
-    data: Vec<u8>,
-    addrs: Vec<Address>,
-    write_ticks: Vec<InstructionTick>,
+    pub data: Vec<u8>,
+    pub addrs: Vec<Address>,
+    pub write_ticks: Vec<InstructionTick>,
+}
+
+impl fmt::Display for MemoryInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	for i in 0..self.data.len() {
+	    if self.write_ticks[i] != 0 {
+		write!(f, "0x{:x}: 0x{:x} (written at {})\n", self.addrs[i], self.data[i], self.write_ticks[i])?;
+	    }
+	}
+	Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -178,6 +336,18 @@ pub struct InstructionWithEffects {
     effects: Vec<OperationEffect>,
 }
 
+impl fmt::Display for InstructionWithEffects {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	writeln!(f, "{}", self.instruction)?;
+	for eff in &self.effects {
+	    writeln!(f, "        {}", eff)?;
+	}
+	Ok(())
+    }
+}
+
+
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperationEffect {
     index: OperationIndex,
@@ -185,6 +355,24 @@ pub struct OperationEffect {
     val: Vec<u8>,
     size: u64,
     effect_type: OperationEffectType,
+}
+
+
+impl fmt::Display for OperationEffect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	match self.effect_type {
+	    OperationEffectType::MemWrite => {
+		write!(f, "Op {}: write mem[0x{:x}] = 0x{:x?}", self.index, self.addr, self.val)?;
+	    },
+	    OperationEffectType::MemRead => {
+		write!(f, "Op {}: read mem[0x{:x}] = 0x{:x?}", self.index, self.addr, self.val)?;
+	    },
+	    OperationEffectType::RegWrite => {
+		write!(f, "Op {}: write reg[{}] = 0x{:x?}", self.index, self.addr, self.val)?;
+	    },
+	}
+	Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -304,16 +492,68 @@ impl TmApi {
 	return Ok(ans);	
     }
     
-    pub fn add_object(&self, obj : Object) -> Result<()> {
-	let mut stmt = self.dataflow.prepare("insert values (?, ?, ?, ?, ?, ?) into objects;")?;
-	stmt.execute(params![obj.base, obj.name, obj.base, obj.size, obj.birth, obj.death])?;
+    pub fn add_object(&self, name: String, base : u64, size : u64, birth : u64, death : u64, typeid: u64) -> Result<()> {
+	let mut stmt = self.dataflow.prepare("insert values (?, ?, ?, ?, ?, ?, ?) into objects;")?;
+	stmt.execute(params![base, name, base, size, birth, death, typeid])?;
 	return Ok(());	
     }
     
-    pub fn del_object(&self, addr : u64) -> Result<()> {
-	let mut stmt = self.dataflow.prepare("delete from objects where base = ?;")?;
-	stmt.execute(params![addr])?;
-	return Ok(());	
+    pub fn add_type(&self, ty : TypeInfo) -> Result<()> {
+	match ty {
+	    TypeInfo::Array{name, count, element_type} => {
+		let mut stmt = self.dataflow.prepare("insert into types (name, kind, arraycount, elementtype) values (?, 'array', ?, ?);")?;
+		stmt.execute(params![name, count, element_type])?;
+	    },
+	    TypeInfo::Pointer{name, size, ty} => {
+		let mut stmt = self.dataflow.prepare("insert into types (name, kind, size, pointer_target_type) values (?, 'pointer', ?, ?);")?;
+		stmt.execute(params![name, size, ty])?;
+	    },
+	    TypeInfo::Structure{name, size, fields} => {
+		let mut stmt = self.dataflow.prepare("insert into types (name, kind, size) values (?, 'structure', ?) returning typeid;")?;
+		let mut rows = stmt.query(params![name, size])?;
+		if let Ok(row) = rows.next() {
+		    if let Some(row) = row {
+			let new_typeid : u64 = row.get(0)?;
+			
+			for f in fields {
+			    let mut stmt = self.dataflow.prepare("insert into structure_fields (typeid, fieldname, fieldoffset, fieldtype) values (?, ?, ?, ?);")?;
+			    stmt.execute(params![new_typeid, f.name, f.offset, f.type_id])?;
+			}
+		    }
+		}
+	    },
+	    TypeInfo::Sized{name, size} => {
+		let mut stmt = self.dataflow.prepare("insert into types (name, kind, size) values (?, 'sized', ?);")?;
+		stmt.execute(params![name, size])?;
+	    },
+	}
+	return Ok(());
+    }
+    
+    pub fn del_type(&self, ty : String) -> Result<()> {
+	let mut stmt = self.dataflow.prepare("with t as (select typeid from types where name = ?) delete from types where typeid = t;")?;
+	stmt.execute(params![ty])?;
+	let mut stmt2 = self.dataflow.prepare("with t as (select typeid from types where name = ?) delete from structure_fields where typeid = t or fieldtype = t;")?;
+	stmt2.execute(params![ty])?;
+	return Ok(());
+    }
+    
+    pub fn del_field(&self, ty: String, offset : i64) -> Result<()> {
+	let mut stmt = self.dataflow.prepare("with t as (select typeid from types where name = ?) delete from structure_fields where typeid = t and fieldoffset = ?;")?;
+	stmt.execute(params![ty, offset])?;
+	return Ok(());
+    }
+    
+    pub fn add_field(&self, ty : String, offset : i64, fieldname: String, fieldtype: String) -> Result<()> {
+	let mut stmt = self.dataflow.prepare("with t as (select typeid from types where name = ?), ft as (select typeid from types where name = ?) insert into structure_fields (typeid, fieldname, fieldoffset, fieldtype) values (t, ?, ?, ft);")?;
+	stmt.execute(params![ty, fieldtype, fieldname, offset])?;
+	return Ok(());
+    }
+    
+    pub fn del_object(&self, name : String) -> Result<()> {
+	let mut stmt = self.dataflow.prepare("delete from objects where name = ?;")?;
+	stmt.execute(params![name])?;
+	return Ok(());
     }
     
 
@@ -357,10 +597,20 @@ impl TmApi {
 	}
 	return Ok(ans);	
     }
+
+    pub fn get_reg_num(&self, reg_name: String) -> Result<u64> {
+	let mut stmt = self.dataflow.prepare("select value from registers where name = ?;")?;
+	let mut rows = stmt.query(params![reg_name])?;
+	if let Some(row) = rows.next()? {
+	    let ans : u64 = row.get(0)?;
+	    return Ok(ans);
+	}
+	return Err(anyhow::anyhow!("failed to find register for name {}", &reg_name));
+    }
     
-    pub fn add_witness(&self, w : Witness) -> Result<()> {
+    pub fn add_witness(&self, module : String, offset: u64, obj_event : WitnessEvent, effect: InstructionEffectType) -> Result<()> {
 	let type_id : u64;
-	let ev = match w.event {
+	let ev = match obj_event {
 	    WitnessEvent::ObjectBirth(t) => {
 		type_id = t;
 		"birth"
@@ -375,7 +625,7 @@ impl TmApi {
 	    },
 	};
 	let reg_num : u64;
-	let ins_feature = match w.effect_type {
+	let ins_feature = match effect {
 	    InstructionEffectType::RegWrite(r) => {
 		reg_num = r;
 		"regwrite"
@@ -398,7 +648,7 @@ impl TmApi {
 	    },
 	};
 	let mut stmt = self.dataflow.prepare("insert values (?, ?, ?, ?, ?, ?) into witnesses;")?;
-	stmt.execute(params![w.module_path, 0 as u64, w.module_offset, ev, type_id, ins_feature, reg_num])?;
+	stmt.execute(params![module, 0 as u64, offset, ev, type_id, ins_feature, reg_num])?;
 	return Ok(());	
     }
     
@@ -597,9 +847,9 @@ impl TmApi {
 	return Ok(ans);
     }
 
-    pub fn get_object_uses(&self, obj : Object) -> Result<Vec<u64>> {
-	let mut stmt = self.dataflow.prepare("load spatial;select index from accesses where ST_Within(pt, ST_MakeEnvelope(?, ?, ?, ?));")?;
-	let mut rows = stmt.query(params![obj.birth, obj.base, obj.death, obj.base+obj.size])?;
+    pub fn get_object_uses(&self, name: String) -> Result<Vec<u64>> {
+	let mut stmt = self.dataflow.prepare("with obj as (select base,size,birth,death from objects where name = ?) load spatial;select index from accesses where ST_Within(pt, ST_MakeEnvelope(obj.birth, obj.base, obj.death, obj.base+obj.size));")?;
+	let mut rows = stmt.query(params![name])?;
 	let mut ans = Vec::<u64>::new();
 	while let Some(row) = rows.next()? {
 	    let idx: u64 = row.get(0)?;
@@ -787,6 +1037,7 @@ select max(t) as tick from (select tick as t from calls union all select tick as
         let mut data = vec![0u8; size];
         let mut addrs = vec![0u64; size];
         let mut write_ticks = vec![0u64; size];
+	eprintln!("{:?}",results);
         for op in results.iter() {
             let mut i = 0;
             for x in op.data.iter() {

@@ -3,9 +3,8 @@ name = "trace-tools"
 version = "0.1.0"
 edition.workspace = true
 
-[lib]
-name = "tm_api"
-path = "src/api/tm-api.rs"
+[[bin]]
+name = "tm-tui"
 
 [[bin]]
 name = "tm-q"
@@ -76,3 +75,9 @@ trace.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 duckdb.workspace = true
+ratatui = { version = "0.30.0", features = ["palette", "scrolling-regions"] }
+color-eyre.workspace = true
+crossterm.workspace = true
+unicode-width.workspace = true
+tui-input.workspace = true
+clap-repl.workspace = true

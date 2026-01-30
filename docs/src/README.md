@@ -68,6 +68,6 @@ The workflow that enables this in practice is:
 
   Details about the analyses can be found in `docs/src/dataflow.md` 
   
-* Open the **ghidra project** in Ghidra with the TraceMandess plugin
+* Open the **ghidra project** in Ghidra with the TraceMadness plugin
   installed and use it to explore the trace and get answers to your
   questions.

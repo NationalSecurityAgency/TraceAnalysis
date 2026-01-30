@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::sync::Arc;
 
-use tm_api::{TmApi,InstructionSet};
+use trace_tools::api::{TmApi,InstructionSet};
 
 use clap::{Parser, Subcommand};
 
