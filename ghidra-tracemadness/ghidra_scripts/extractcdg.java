@@ -170,7 +170,7 @@ public class extractcdg extends GhidraScript {
 	    fnEntry.put("_key",String.format("%d_%d",progId,fnaddr));
 	    fnEntry.put("namespace",f.getParentNamespace().getName());
 	    fnEntry.put("name",f.getName());
-	    fnEntry.put("addr",String.format("%d",addr));
+	    fnEntry.put("addr",String.format("%d",fnaddr));
 	    fnEntry.put("start",String.format("%d",low));
 	    fnEntry.put("end",String.format("%d",hi));
 	    

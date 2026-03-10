@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use std::fmt;
 use std::fs;
+use std::path::PathBuf;
 use dataflow::prelude::SpaceKind;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -19,8 +20,8 @@ use crate::index::Serializable;
 
 pub struct TmApi {
     dataflow: Connection,
-    registers: SpacetimeRTree,
-    memory: SpacetimeRTree,
+    registers: Option<SpacetimeRTree>,
+    memory: Option<SpacetimeRTree>,
     strings: StringIndex<()>,
 }
 
@@ -43,6 +44,37 @@ impl fmt::Display for BufferInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Address: 0x{:x}, Lifetime: {}-{}", self.addr, self.birth, self.death)
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Function {
+    module: String,
+    offset: u64,
+    size: u64,
+    name: String,
+    namespace: String,
+    pc: u64,
+}
+
+impl fmt::Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	if self.namespace == "" {
+	    write!(f, "{}:0x{:x} {}", self.module, self.offset, self.name)
+	} else {
+	    write!(f, "{}:0x{:x} {}::{}", self.module, self.offset, self.namespace, self.name)  
+	}
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FunctionRun {
+    pc: u64,
+    starttick: u64,
+    callsite: u64,
+    module: String,
+    offset: u64,
+    namespace: String,
+    name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -383,7 +415,7 @@ pub enum OperationEffectType {
 }
 
 /// Returns a tuple of (reg_space, mem_space)
-fn get_st_index_spaces(index: &str) -> Result<(SpacetimeRTree, SpacetimeRTree)> {
+fn get_st_index_spaces(index: &str) -> Result<(Option<SpacetimeRTree>, Option<SpacetimeRTree>)> {
     let buffer = fs::read(index)?;
 
     let mut offs = 0;
@@ -398,12 +430,7 @@ fn get_st_index_spaces(index: &str) -> Result<(SpacetimeRTree, SpacetimeRTree)> 
         }
     }
 
-    match (reg_space, mem_space) {
-        (Some(r), Some(m)) => Ok((r, m)),
-        _ => Err(anyhow::anyhow!(
-            "Not enough 'spaces' in index file! (needs at least 2)"
-        )),
-    }
+    return Ok((reg_space, mem_space));
 }
 
 fn get_string_index(index: &str) -> Result<StringIndex<()>> {
@@ -423,39 +450,62 @@ impl TmApi {
 	    strings: str_index,
 	})
     }
-    pub fn init(&self) -> Result<()> {
+    pub fn init(&mut self) -> Result<()> {
 	let init_db : &str = include_str!("data/init.duckdb");
-	self.dataflow.execute_batch(init_db)?;
+	let tx = self.dataflow.transaction()?;
+	tx.execute_batch(init_db)?;
+	tx.commit()?;
 	Ok(())
     }
-    pub fn import_dynamic(&self, csv_path: String) -> Result<()> {
-	self.dataflow.execute(format!("insert into instructionruns select _key,tick,pc,disas from '{}/ticks.csv';", csv_path).as_str(), params![])?;
+    pub fn import_dynamic(&mut self, csv_path: String) -> Result<()> {
+	let tx = self.dataflow.transaction()?;
+	tx.execute(format!("insert into instructionruns select _key,tick,pc,disas from '{}/ticks.csv';", csv_path).as_str(), params![])?;
 	
-	self.dataflow.execute(format!("insert into operationruns select _key,index,tick,opcode,size,bank,addr,cast(val as uint128) as val,raw,assocd_addr,assocd_bank,assocd_size from  read_csv('{}/deltas.csv',delim=',',columns={{'_key':'varchar','runid':'uint64','index':'uint64','tick':'uint64','opcode':'uint64','bank':'uint64','addr':'uint64','val':'varchar','raw':'varchar','size':'uint64','assocd_bank':'uint64','assocd_addr':'uint64','assocd_size':'uint64'}},strict_mode=false,header=true,null_padding=true,ignore_errors=true);", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into addrdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to,maybe from '{}/addr_deps.csv';", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into inputdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to,maybe,pos from '{}/input_deps.csv';", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into cfdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/cf_deps.csv';", csv_path).as_str(), params![])?;
-	self.dataflow.execute_batch("load spatial;create table accesses (pt GEOMETRY, index uint64);")?;
-	self.dataflow.execute_batch("load spatial;insert into accesses select ST_Point(tick,CASE WHEN opcode == 2 THEN assocd_addr ELSE addr END) as pt,index from operationruns where bank == 1 or opcode == 2;create index access_idx on accesses using RTREE(pt);")?;
+	tx.execute(format!("insert into operationruns select _key,index,tick,opcode,size,bank,addr,cast(val as uint128) as val,raw,assocd_addr,assocd_bank,assocd_size from  read_csv('{}/deltas.csv',delim=',',columns={{'_key':'varchar','runid':'uint64','index':'uint64','tick':'uint64','opcode':'uint64','bank':'uint64','addr':'uint64','val':'varchar','raw':'varchar','size':'uint64','assocd_bank':'uint64','assocd_addr':'uint64','assocd_size':'uint64'}},strict_mode=false,header=true,null_padding=true,ignore_errors=true);", csv_path).as_str(), params![])?;
+	tx.execute(format!("insert into addrdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to,maybe from '{}/addr_deps.csv';", csv_path).as_str(), params![])?;
+	tx.execute(format!("insert into inputdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to,maybe,pos from '{}/input_deps.csv';", csv_path).as_str(), params![])?;
+	tx.execute(format!("insert into cfdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/cf_deps.csv';", csv_path).as_str(), params![])?;
+	tx.execute_batch("load spatial;create table accesses (pt GEOMETRY, index uint64);")?;
+	tx.execute_batch("load spatial;insert into accesses select ST_Point(tick,CASE WHEN opcode == 2 THEN assocd_addr ELSE addr END) as pt,index from operationruns where bank == 1 or opcode == 2;create index access_idx on accesses using RTREE(pt);")?;
 
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("functionruns.csv"))?.len() > 0 {
+	    tx.execute(format!("insert into functionruns select callsite as calliste,pc as pc,starttick as starttick,startindex as startindex,endindex as endindex,retval as retval,stackdepth as stackdepth,stackptr as stackptr from '{}/functionruns.csv';", csv_path).as_str(), params![])?;
+
+	    tx.execute(format!("insert into infunctionrun select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/functionticks.csv';", csv_path).as_str(), params![])?;
+	    tx.execute(format!("insert into calls select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/calls.csv';", csv_path).as_str(), params![])?;
 	
-	self.dataflow.execute(format!("insert into functionruns select startindex as _key,callsite as calliste,pc as pc,starttick as starttick,startindex as startindex,endindex as endindex,retval as retval,stackdepth as stackdepth,stackptr as stackptr from '{}/functionruns.csv';", csv_path).as_str(), params![])?;
-	//self.dataflow.execute(format!("insert into syscallruns select tick as _key,tick as tick,number as number,retval as retval from '{}/syscallruns.csv';", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into infunctionrun select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/functionticks.csv';", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into calls select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/calls.csv';", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into retdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/retdeps.csv';", csv_path).as_str(), params![])?;
-	//self.dataflow.execute(format!("insert into makessyscall select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/syscallruncalls.csv';", csv_path).as_str(), params![])?;
+	    tx.execute(format!("insert into retdep select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/retdeps.csv';", csv_path).as_str(), params![])?;
+	    
+	}
 	
+	//tx.execute(format!("insert into syscallruns select tick as _key,tick as tick,number as number,retval as retval from '{}/syscallruns.csv';", csv_path).as_str(), params![])?;
+	//tx.execute(format!("insert into makessyscall select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from '{}/syscallruncalls.csv';", csv_path).as_str(), params![])?;
+	tx.commit()?;
 	Ok(())
     }
     pub fn import_static(&self, csv_path: String) -> Result<()> {
-	self.dataflow.execute(format!("insert into functions select _key as _key, name as name, namespace as namespace, module as module, start, (CAST(\"end\" as UBIGINT)-CAST(start as UBIGINT)) as size from read_json_auto('{}/functions.jsonl');", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into blocks select _key as _key,module as module, addr as addr,(CAST(\"end\" as UBIGINT)-CAST(addr as UBIGINT)) as end from read_json_auto('{}/blocks.jsonl');", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into modules select low as _key,low as base,(CAST(high as UBIGINT)-CAST(low as UBIGINT)) as size,name as name,name as path from read_json_auto('{}/maps.jsonl');", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into cdg select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/cdg.jsonl');", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into blockof select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/blockof.jsonl');", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into successorof select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/successorof.jsonl');", csv_path).as_str(), params![])?;
-	self.dataflow.execute(format!("insert into callerof select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/callerof.jsonl');", csv_path).as_str(), params![])?;
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("functions.jsonl"))?.len() > 0 {
+	    self.dataflow.execute(format!("insert into functions select _key as _key, name as name, namespace as namespace, module as module, start, (CAST(\"end\" as UBIGINT)-CAST(start as UBIGINT)) as size from read_json_auto('{}/functions.jsonl');", csv_path).as_str(), params![])?;
+	}
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("blocks.jsonl"))?.len() > 0 {
+	    self.dataflow.execute(format!("insert into blocks select _key as _key,module as module, addr as addr,(CAST(\"end\" as UBIGINT)-CAST(addr as UBIGINT)) as end from read_json_auto('{}/blocks.jsonl');", csv_path).as_str(), params![])?;
+	}
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("cdg.jsonl"))?.len() > 0 {
+	    self.dataflow.execute(format!("insert into cdg select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/cdg.jsonl');", csv_path).as_str(), params![])?;
+	}
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("blockof.jsonl"))?.len() > 0 {
+	    self.dataflow.execute(format!("insert into blockof select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/blockof.jsonl');", csv_path).as_str(), params![])?;
+	}
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("successorof.jsonl"))?.len() > 0 {
+	    self.dataflow.execute(format!("insert into successorof select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/successorof.jsonl');", csv_path).as_str(), params![])?;
+	}
+	if fs::metadata(PathBuf::from(csv_path.clone()).join("callerof.jsonl"))?.len() > 0 {
+	    self.dataflow.execute(format!("insert into callerof select 0 as _key,string_split(_from, '/')[2] as _from,string_split(_to, '/')[2] as _to from read_json_auto('{}/callerof.jsonl');", csv_path).as_str(), params![])?;
+	}
+	Ok(())
+    }
+    pub fn import_modules(&self, jsonl_path:String) -> Result<()> {
+	self.dataflow.execute(format!("insert into modules select low as _key,low as base,(CAST(high as UBIGINT)-CAST(low as UBIGINT)) as size,name as name,name as path from read_json_auto('{}');", jsonl_path).as_str(), params![])?;
 	Ok(())
     }
     
@@ -1017,7 +1067,41 @@ select max(t) as tick from (select tick as t from calls union all select tick as
 	}
 	return Ok(ans);	
     }
-    
+
+    pub fn get_functions(&self) -> Result<Vec<Function>> {
+	let mut stmt = self.dataflow.prepare("select f.addr as addr,f.name as name,f.namespace as namespace,f.size as size,m.path as module,m.base as base,(f.addr - m.base) as mod_offset from functions as f inner join modules as m on f.addr between m.base and m.base+m.size;")?;
+	let mut rows = stmt.query(params![])?;
+	let mut ans = Vec::<Function>::new();
+	while let Some(row) = rows.next()? {
+	    let addr: u64 = row.get(0)?;
+	    let name: String = row.get(1)?;
+	    let namespace: String = row.get(2)?;
+	    let size: u64 = row.get(3)?;
+	    let mod_path: String = row.get(4)?;
+	    let base: u64 = row.get(5)?;
+	    let offset: u64 = row.get(6)?;
+	    ans.push(Function{module:mod_path,offset:offset,size:size,name:name,namespace:namespace,pc:addr});
+	}
+	return Ok(ans);
+    }
+
+    pub fn get_function_at(&self, pc : u64) -> Result<Vec<Function>> {
+	let mut stmt = self.dataflow.prepare("select f.addr as addr,f.name as name,f.namespace as namespace,f.size as size,m.path as module,m.base as base,(f.addr - m.base) as mod_offset from functions as f inner join modules as m on f.addr between m.base and m.base+m.size where f.addr = ?;")?;
+	let mut rows = stmt.query(params![pc])?;
+	let mut ans = Vec::<Function>::new();
+	while let Some(row) = rows.next()? {
+	    let addr: u64 = row.get(0)?;
+	    let name: String = row.get(1)?;
+	    let namespace: String = row.get(2)?;
+	    let size: u64 = row.get(3)?;
+	    let mod_path: String = row.get(4)?;
+	    let base: u64 = row.get(5)?;
+	    let offset: u64 = row.get(6)?;
+	    ans.push(Function{module:mod_path,offset:offset,size:size,name:name,namespace:namespace,pc:addr});
+	}
+	return Ok(ans);
+    }
+
     pub fn stringsearch(&self, search_string: String) -> Result<Vec<BufferInfo>> {
         let results = self.strings.search(search_string.as_str().as_bytes());
 	let mut ans = Vec::<BufferInfo>::new();
@@ -1033,52 +1117,58 @@ select max(t) as tick from (select tick as t from calls union all select tick as
     }
 
     pub fn get_memory(&self, tick: InstructionTick, address: Address, size: usize) -> Result<MemoryInfo> {
-	let results = self.memory.find(tick, address, address + size as u64);
-        let mut data = vec![0u8; size];
-        let mut addrs = vec![0u64; size];
-        let mut write_ticks = vec![0u64; size];
-	eprintln!("{:?}",results);
-        for op in results.iter() {
-            let mut i = 0;
-            for x in op.data.iter() {
-                if op.address + i >= address && op.address + i < address + size as u64 {
-                    let offset = (op.address + i - address) as usize;
-                    if op.created_at > write_ticks[offset] {
-                        addrs[offset] = op.address + i;
-                        write_ticks[offset] = op.created_at;
-                        data[offset] = *x;
-                    } else {
-                        addrs[offset] = op.address + i;
+	if let Some(memory) = &self.memory {
+	    let results = memory.find(tick, address, address + size as u64);
+            let mut data = vec![0u8; size];
+            let mut addrs = vec![0u64; size];
+            let mut write_ticks = vec![0u64; size];
+	    eprintln!("{:?}",results);
+            for op in results.iter() {
+		let mut i = 0;
+		for x in op.data.iter() {
+                    if op.address + i >= address && op.address + i < address + size as u64 {
+			let offset = (op.address + i - address) as usize;
+			if op.created_at > write_ticks[offset] {
+                            addrs[offset] = op.address + i;
+                            write_ticks[offset] = op.created_at;
+                            data[offset] = *x;
+			} else {
+                            addrs[offset] = op.address + i;
+			}
                     }
-                }
-                i += 1;
+                    i += 1;
+		}
             }
-        }
-	Ok(MemoryInfo{data, addrs, write_ticks})
+	    return Ok(MemoryInfo{data, addrs, write_ticks});
+	}
+	return Err(anyhow!("A memory index was not found in the spacetime index file"));
     }
 
 
     pub fn get_registers(&self, tick: InstructionTick, address: Address, size: usize) -> Result<MemoryInfo> {
-	let results = self.registers.find(tick, address, address + size as u64);
-        let mut data = vec![0u8; size];
-        let mut addrs = vec![0u64; size];
-        let mut write_ticks = vec![0u64; size];
-        for op in results.iter() {
-            let mut i = 0;
-            for x in op.data.iter() {
-                if op.address + i >= address && op.address + i < address + size as u64 {
-                    let offset = (op.address + i - address) as usize;
-                    if op.created_at > write_ticks[offset] {
-                        addrs[offset] = op.address + i;
-                        write_ticks[offset] = op.created_at;
-                        data[offset] = *x;
-                    } else {
-                        addrs[offset] = op.address + i;
+	if let Some(registers) = &self.registers {
+	    let results = registers.find(tick, address, address + size as u64);
+            let mut data = vec![0u8; size];
+            let mut addrs = vec![0u64; size];
+            let mut write_ticks = vec![0u64; size];
+            for op in results.iter() {
+		let mut i = 0;
+		for x in op.data.iter() {
+                    if op.address + i >= address && op.address + i < address + size as u64 {
+			let offset = (op.address + i - address) as usize;
+			if op.created_at > write_ticks[offset] {
+                            addrs[offset] = op.address + i;
+                            write_ticks[offset] = op.created_at;
+                            data[offset] = *x;
+			} else {
+                            addrs[offset] = op.address + i;
+			}
                     }
-                }
-                i += 1;
+                    i += 1;
+		}
             }
-        }
-	Ok(MemoryInfo{data, addrs, write_ticks})
+	    return Ok(MemoryInfo{data, addrs, write_ticks});
+	}
+	return Err(anyhow!("A register index was not found in the spacetime index file"));
     }
 }

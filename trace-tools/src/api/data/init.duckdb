@@ -1,3 +1,4 @@
+INSTALL spatial;
 LOAD spatial;
 
 
@@ -15,7 +16,6 @@ CREATE INDEX instructionruns_idx_1 on instructionruns (pc);
 CREATE INDEX instructionruns_idx_2 on instructionruns (tick);
 
 CREATE TABLE functionruns (_key uint64, callsite uint64, pc uint64, starttick uint64, startindex uint64, endindex uint64, retval uint64, stackdepth uint64, stackptr uint64);
-CREATE UNIQUE INDEX functionruns_key_idx on functionruns (_key);
 CREATE INDEX functionruns_idx_1 on functionruns (startindex);
 CREATE INDEX functionruns_idx_2 on functionruns (starttick);
 CREATE INDEX functionruns_idx_3 on functionruns (pc);
@@ -33,6 +33,10 @@ CREATE UNIQUE INDEX functions_key_idx on functions (_key);
 CREATE INDEX functions_idx_1 on functions (addr);
 CREATE INDEX functions_idx_2 on functions (addr);
 CREATE INDEX functions_idx_3 on functions (namespace, name);
+
+CREATE TABLE callingconventions (_key VARCHAR, fnmodule VARCHAR, fnaddr uint64, argnum uint64, storage_type VARCHAR, storage_offset int64, storage_size uint64);
+CREATE UNIQUE INDEX callingconventions_key_idx on callingconventions (_key);
+CREATE INDEX callingconventions_arg on callingconventions (fnmodule, fnaddr, argnum);
 
 CREATE TABLE blocks (_key VARCHAR, module VARCHAR, addr uint64, size uint64);
 CREATE UNIQUE INDEX blocks_key_idx on blocks (_key);

@@ -299,6 +299,86 @@ pub struct FnTracker {
 }
 
 impl FnTracker {
+    pub fn make(analysis: &dataflow_core::analysis::Analysis, outdir: String) -> Self {
+        let memory_space = analysis.default_data_space();
+        let register_space = analysis.register_space();
+        match analysis.arch() {
+            Architecture::X86(_) => Self::new(
+                FnTrackerArch::X86,
+                register_space,
+                memory_space,
+                32,
+                0,
+                0,
+                0,
+                64,
+                9,
+		outdir,
+            ),
+            Architecture::X86_64(_) => Self::new(
+                FnTrackerArch::X86,
+                register_space,
+                memory_space,
+                32,
+                0,
+                0,
+                0,
+                64,
+                9,
+		outdir,
+            ),
+            Architecture::X86_64Compat32(_) => Self::new(
+                FnTrackerArch::X86,
+                register_space,
+                memory_space,
+                32,
+                0,
+                0,
+                0,
+                64,
+                9,
+		outdir,
+            ),
+            Architecture::PPCBE32(_) => Self::new(
+                FnTrackerArch::PPC,
+                register_space,
+                memory_space,
+                0x04,
+                0x0c,
+                0x00,
+                0,
+                64,
+                9,
+		outdir,
+            ),
+            Architecture::AARCH64(_) => Self::new(
+                FnTrackerArch::ARM64,
+                register_space,
+                memory_space,
+                0x8,    //stack -- sp
+                0x4000, //ret -- x0
+                0x4040, //syscallnum -- x8
+                0x4000, // reg_context_start -- x0
+                64,     // context_size (x0-x7 regs; 64-bytes stack)
+                9,      // buffer size
+		outdir,
+            ),
+            Architecture::ARM32(_) => Self::new(
+                FnTrackerArch::ARM32,
+                register_space,
+                memory_space,
+                0x54, //stack -- sp
+                0x20, //ret -- r0
+                0x3c, //syscallnum -- r7
+                0x20, // reg_context_start -- r0
+                0x34, // context_size (r0-r12 regs; 52-bytes stack)
+                9,    // buffer size
+		outdir,
+            ),
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn new(
         arch: FnTrackerArch,
         register_space: Space,
@@ -309,6 +389,7 @@ impl FnTracker {
         reg_context_start: u64,
         context_size: u64,
         buf_size: u64,
+	outdir: String,
     ) -> Self {
         let mut threads = Vec::with_capacity(3);
 
@@ -316,18 +397,21 @@ impl FnTracker {
         // threads.push(thread::spawn(move || { writers::write_functionticks(chan, "out/"); }));
 
         let (functionrun_writer, chan) = mpsc::channel();
+	let value = outdir.clone();
         threads.push(thread::spawn(move || {
-            writers::write_functionruns(chan, "out/");
+            writers::write_functionruns(chan, value);
         }));
 
         let (syscallrun_writer, chan) = mpsc::channel();
+	let value = outdir.clone();
         threads.push(thread::spawn(move || {
-            writers::write_syscallruns(chan, "out/");
+            writers::write_syscallruns(chan, value);
         }));
 
         let (buffer_writer, chan) = mpsc::channel();
+	let value = outdir.clone();
         threads.push(thread::spawn(move || {
-            writers::write_buffers(chan, "out/");
+            writers::write_buffers(chan, value);
         }));
 
         Self {
@@ -446,6 +530,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
     fn from(analysis: &dataflow_core::analysis::Analysis) -> Self {
         let memory_space = analysis.default_data_space();
         let register_space = analysis.register_space();
+	let outdir = "out/".to_string();
         match analysis.arch() {
             Architecture::X86(_) => Self::new(
                 FnTrackerArch::X86,
@@ -457,6 +542,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
                 0,
                 64,
                 9,
+		outdir,
             ),
             Architecture::X86_64(_) => Self::new(
                 FnTrackerArch::X86,
@@ -468,6 +554,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
                 0,
                 64,
                 9,
+		outdir,
             ),
             Architecture::X86_64Compat32(_) => Self::new(
                 FnTrackerArch::X86,
@@ -479,6 +566,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
                 0,
                 64,
                 9,
+		outdir,
             ),
             Architecture::PPCBE32(_) => Self::new(
                 FnTrackerArch::PPC,
@@ -490,6 +578,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
                 0,
                 64,
                 9,
+		outdir,
             ),
             Architecture::AARCH64(_) => Self::new(
                 FnTrackerArch::ARM64,
@@ -501,6 +590,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
                 0x4000, // reg_context_start -- x0
                 64,     // context_size (x0-x7 regs; 64-bytes stack)
                 9,      // buffer size
+		outdir,
             ),
             Architecture::ARM32(_) => Self::new(
                 FnTrackerArch::ARM32,
@@ -512,6 +602,7 @@ impl From<&'_ dataflow_core::analysis::Analysis> for FnTracker {
                 0x20, // reg_context_start -- r0
                 0x34, // context_size (r0-r12 regs; 52-bytes stack)
                 9,    // buffer size
+		outdir,
             ),
             _ => unimplemented!(),
         }

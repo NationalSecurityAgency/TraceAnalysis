@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::sync::Arc;
 
-use crate::api::{TmApi, InstructionSet, InstructionRun, Object, Witness, InstructionWithEffects, OperationsWithInstructions, WitnessedEvent, Module, BufferInfo, MemoryInfo, WitnessEvent, InstructionEffectType, TypeInfo};
+use crate::api::{TmApi, InstructionSet, InstructionRun, Object, Witness, InstructionWithEffects, OperationsWithInstructions, WitnessedEvent, Module, BufferInfo, MemoryInfo, WitnessEvent, InstructionEffectType, TypeInfo, Function};
 
 use clap::{Parser, Subcommand};
 
@@ -33,22 +33,24 @@ pub enum Commands {
     GetInstructions { start_tick: u64, end_tick: u64 },
     StringSearch { string: String },
     GetModules { },
+    GetFunctions { },
+    GetFunctionAt {
+	#[arg(value_parser = parse_hex_u64)]
+	pc: u64 },
+    // GetFunctionRuns {
+    // 	#[arg(value_parser = parse_hex_u64)]
+    //	pc : u64 },
     GetMemory {
 	tick: u64,
-	
 	#[arg(value_parser = parse_hex_u64)]
 	address: u64,
-	
-	size: u64
-    },
+	size: u64 },
     GetTrace {start_tick: u64, end_tick: u64},
     FindPc {
 	#[arg(value_parser = parse_hex_u64)]
 	start_pc: u64,
-	
 	#[arg(value_parser = parse_hex_u64)]
-	end_pc: Option<u64>
-    },
+	end_pc: Option<u64> },
     Why {tick: u64},
     Slice {index: u64, depth: u64},
     Backslice {index: u64, depth: u64},
@@ -61,34 +63,26 @@ pub enum Commands {
 	#[arg(value_parser = parse_hex_u64)]
 	end_addr: u64,
 	start_tick: u64,
-	end_tick: u64
-    },
-
+	end_tick: u64 },
     AddType {name: String, kind: String, count: Option<u64>, size: Option<u64>, element_type: Option<u64>},
     DelType {name: String},
     //ResizeArrayType {typename: String, newsite: u64},
     //SetTypeName {typename: String, newname: String},
     AddStructureField {typename: String, offset: i64, fieldname: String, fieldtype: String},
     DelStructureField {typename: String, offset: i64},
-    
     AddObject {
 	name: String,
-	
 	#[arg(value_parser = parse_hex_u64)]
 	base : u64,
 	size : u64,
 	birth: u64,
 	death: u64,
-	typeid: u64
-    },
+	typeid: u64 },
     DelObject {
-	name: String
-    },
+	name: String },
     ListObjects {},
     GetObjectUses {
-	name: String
-    },
-
+	name: String },
     AddWitness {
 	module: String,
 	#[arg(value_parser = parse_hex_u64)]
@@ -96,13 +90,11 @@ pub enum Commands {
 	obj_event_type: String,
 	obj_typeid: u64,
 	insn_effect: String,
-	reg_name: Option<String>
-    },
+	reg_name: Option<String> },
     DelWitness {
 	module: String,
 	#[arg(value_parser = parse_hex_u64)]
-	offset: u64
-    },
+	offset: u64 },
     ListWitnesses {},
     GetWitnessEvents {},
 }
@@ -112,6 +104,7 @@ pub enum Response {
     Done,
     Instructions(Vec<InstructionRun>),
     Objects(Vec<Object>),
+    Functions(Vec<Function>),
     Witnesses(Vec<Witness>),
     Instrace(Vec<InstructionWithEffects>),
     OperationIndices(Vec<u64>),
@@ -130,6 +123,12 @@ impl fmt::Display for Response {
 		writeln!(f, "done")
 	    },
 	    Response::Instructions(v) => {
+		for x in v {
+		    writeln!(f, "{}", x)?;
+		}
+		Ok(())
+	    },
+	    Response::Functions(v) => {
 		for x in v {
 		    writeln!(f, "{}", x)?;
 		}
@@ -215,6 +214,12 @@ pub fn handle_cmd(cmd : Command, api: &TmApi) -> Result<Response> {
 	},
 	Commands::GetModules{} => {
 	    return Ok(Response::Modules(api.get_modules()?));
+	},
+	Commands::GetFunctions{} => {
+	    return Ok(Response::Functions(api.get_functions()?));
+	},
+	Commands::GetFunctionAt{ pc } => {
+	    return Ok(Response::Functions(api.get_function_at(*pc)?));
 	},
 	Commands::StringSearch{ string } => {
 	    return Ok(Response::Buffers(api.stringsearch((string).clone().to_string())?));

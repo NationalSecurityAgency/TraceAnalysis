@@ -74,10 +74,11 @@ serde_json.workspace = true
 trace.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
-duckdb.workspace = true
+duckdb = { workspace = true, features = ["bundled"] }
 ratatui = { version = "0.30.0", features = ["palette", "scrolling-regions"] }
 color-eyre.workspace = true
 crossterm.workspace = true
 unicode-width.workspace = true
 tui-input.workspace = true
 clap-repl.workspace = true
+walkdir = "2.5.0"

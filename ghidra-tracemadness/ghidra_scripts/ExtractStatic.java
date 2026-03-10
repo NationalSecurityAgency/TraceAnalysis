@@ -17,10 +17,21 @@ import ghidra.program.model.block.BasicBlockModel;
 import ghidra.program.model.listing.FunctionManager;
 import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.VariableStorage;
 import ghidra.program.model.symbol.FlowType;
 import ghidra.program.model.symbol.Reference;
 import ghidra.program.model.block.graph.CodeBlockVertex;
 import ghidra.program.model.block.graph.CodeBlockEdge;
+import ghidra.program.model.pcode.HighFunction;
+import ghidra.program.model.pcode.FunctionPrototype;
+import ghidra.app.decompiler.DecompInterface;
+import ghidra.app.decompiler.DecompileResults;
+import ghidra.app.decompiler.DecompiledFunction;
+import ghidra.app.decompiler.ClangNode;
+import ghidra.app.decompiler.ClangFunction;
+import ghidra.app.decompiler.ClangLine;
+import ghidra.app.decompiler.ClangToken;
+import ghidra.app.decompiler.ClangTokenGroup;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -38,7 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-public class extractstatic extends GhidraScript {
+public class ExtractStatic extends GhidraScript {
 
     private GDirectedGraph getBBGDirectedGraphForFunction(Function f, List<CodeBlockVertex> V) throws Exception {
 	DirectedSparseGraph<CodeBlockVertex, CodeBlockEdge> dg = new DirectedSparseGraph<>();
@@ -131,7 +142,10 @@ public class extractstatic extends GhidraScript {
 	List<Map<String, Object>> calls = new ArrayList<>();
 	List<Map<String, Object>> blockof = new ArrayList<>();
 	List<Map<String, Object>> blocks = new ArrayList<>();
+	List<Map<String, Object>> callingconv = new ArrayList<>();
 	List<Map<String, Object>> successors = new ArrayList<>();
+	List<Map<String, Object>> decomps = new ArrayList<>();
+	List<Map<String, Object>> decompTokens = new ArrayList<>();
 	
 	
 	long progId = currentProgram.getUniqueProgramID();
@@ -140,6 +154,9 @@ public class extractstatic extends GhidraScript {
 	List<Map<String, Object>> cdg = new ArrayList<>();
 
 	BasicBlockModel blockModel = new BasicBlockModel(currentProgram);
+
+	DecompInterface decomp = new DecompInterface();
+	if (!decomp.openProgram(currentProgram)) return;
 	
 	FunctionManager mgr = currentProgram.getFunctionManager();
 	for(Function f : mgr.getFunctions(true)) {
@@ -156,6 +173,105 @@ public class extractstatic extends GhidraScript {
 	    fnEntry.put("module",module);
 	    functions.add(fnEntry);
 
+	    DecompileResults decompRes = decomp.decompileFunction(f, 10, null);
+	    if(decompRes.decompileCompleted()) {
+		DecompiledFunction df = decompRes.getDecompiledFunction();
+		String signature = df.getSignature();
+		String body = df.getC();
+		
+		Map<String, Object> decompEntry = new HashMap<>();
+		decompEntry.put("fnmodule",module);
+		decompEntry.put("fnaddr",fnaddr);
+		decompEntry.put("signature",signature);
+		decompEntry.put("body",body);
+		decomps.add(decompEntry);
+
+		ClangTokenGroup tokenGroup = decompRes.getCCodeMarkup();
+		java.util.Iterator<ClangToken> itr = tokenGroup.tokenIterator(true);
+		while(itr.hasNext()) {
+		    ClangToken t = itr.next();
+		    ClangLine line = t.getLineParent();
+		    String token_txt = t.getText();
+		    long token_len = token_txt.length();
+		    if (line == null) continue;
+		    if (t.getMaxAddress() == null || t.getMinAddress() == null) continue;
+		    
+		    long token_idx = line.indexOfToken(t);
+		    long token_pos = 0L;
+		    for(int ti = 0; ti < token_idx; ti++) {
+			token_pos += line.getToken(ti).getText().length();
+		    }
+		    long token_line = line.getLineNumber();
+		    long token_min_addr = t.getMinAddress().getOffset();
+		    long token_max_addr = t.getMaxAddress().getOffset();
+		    Map<String, Object> tokenEntry = new HashMap<>();
+		    tokenEntry.put("fnmodule",module);
+		    tokenEntry.put("fnaddr",fnaddr);
+		    tokenEntry.put("text",token_txt);
+		    tokenEntry.put("len",token_len);
+		    tokenEntry.put("linepos",token_pos);
+		    tokenEntry.put("linenum",token_line);
+		    tokenEntry.put("minaddr",token_min_addr);
+		    tokenEntry.put("maxaddr",token_max_addr);
+		    decompTokens.add(tokenEntry);
+		}
+		
+		HighFunction hf = decompRes.getHighFunction();
+		if(hf != null) {
+		    FunctionPrototype fnProto = hf.getFunctionPrototype();
+		    int sp = hf.getCompilerSpec().getStackPointer().getOffset();
+		    for(int i = 0; i < fnProto.getNumParams(); i++) {
+			Map<String, Object> callconvEntry = new HashMap<>();
+			VariableStorage argStorage = fnProto.getParam(i).getStorage();
+			if(argStorage.isStackStorage()) {
+			    int offset = argStorage.getStackOffset();
+			    int size = argStorage.size();
+			    callconvEntry.put("fnmodule",module);
+			    callconvEntry.put("fnaddr",fnaddr);
+			    callconvEntry.put("argnum",i+1);
+			    callconvEntry.put("storage_type","stack");
+			    callconvEntry.put("storage_offset",offset);
+			    callconvEntry.put("storage_size",size);
+			    callingconv.add(callconvEntry);
+			} else if (argStorage.isRegisterStorage()) {
+			    int offset = argStorage.getRegister().getOffset();
+			    int size = argStorage.size();
+			    callconvEntry.put("fnmodule",module);
+			    callconvEntry.put("fnaddr",fnaddr);
+			    callconvEntry.put("argnum",i+1);
+			    callconvEntry.put("storage_type","reg");
+			    callconvEntry.put("storage_offset",offset);
+			    callconvEntry.put("storage_size",size);
+			    callingconv.add(callconvEntry);
+			}
+			
+		    }
+		    VariableStorage retStorage = fnProto.getReturnStorage();
+		    Map<String, Object> callconvEntry = new HashMap<>();
+		    if(retStorage.isStackStorage()) {
+			int offset = retStorage.getStackOffset();
+			int size = retStorage.size();
+			callconvEntry.put("fnmodule",module);
+			callconvEntry.put("fnaddr",fnaddr);
+			callconvEntry.put("argnum",0);
+			callconvEntry.put("storage_type","stack");
+			callconvEntry.put("storage_offset",offset);
+			callconvEntry.put("storage_size",size);
+			callingconv.add(callconvEntry);
+		    } else if (retStorage.isRegisterStorage()) {
+			int offset = retStorage.getRegister().getOffset();
+			int size = retStorage.size();
+			callconvEntry.put("fnmodule",module);
+			callconvEntry.put("fnaddr",fnaddr);
+			callconvEntry.put("argnum",0);
+			callconvEntry.put("storage_type","reg");
+			callconvEntry.put("storage_offset",offset);
+			callconvEntry.put("storage_size",size);
+			callingconv.add(callconvEntry);
+		    }
+		}
+	    }
+	    
 	    // Get the calls to the function
 	    Reference[] refs = getReferencesTo(f.getEntryPoint());
 	    for(int i = 0; i < refs.length; i++) {
@@ -220,6 +336,7 @@ public class extractstatic extends GhidraScript {
 		}
 	    }
 	}
+	decomp.dispose();
 	try {
 	    exportJSON(outpath, "blocks.jsonl", blocks);
 	    exportJSON(outpath, "functions.jsonl", functions);
@@ -227,12 +344,16 @@ public class extractstatic extends GhidraScript {
 	    exportJSON(outpath, "blockof.jsonl", blockof);
 	    exportJSON(outpath, "successorof.jsonl", successors);
 	    exportJSON(outpath, "callerof.jsonl", calls);
+	    
+	    exportJSON(outpath, "decomptokens.jsonl", decompTokens);
+	    exportJSON(outpath, "decomps.jsonl", decomps);
+	    exportJSON(outpath, "callingconvs.jsonl", callingconv);
 	} catch(Exception e) {
 	    throw(e);
 	}
     }
 
-    private void exportJSON(String path, String filename, List<Map<String, Object>>> data) throws Exception {
+    private void exportJSON(String path, String filename, List<Map<String, Object>> data) throws Exception {
 	
 	try {
 	    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
