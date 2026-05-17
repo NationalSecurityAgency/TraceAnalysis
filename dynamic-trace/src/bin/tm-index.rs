@@ -63,7 +63,7 @@ fn parse_ops(args: Args) -> Result<(Vec<Operation>, u64)> {
         .for_each(|raw| {
             match arch.parse_record(raw) {
                 Err(_) => eprintln!("Error encountered during parsing"),
-                Ok(Record::Pc(_)) => tick += 1,
+                Ok(Record::Instruction(_)) => tick += 1,
                 Ok(Record::MemRead(read)) => ops.push(Operation {
                     space: SpaceKind::Memory,
                     data: read.contents().to_vec(),
